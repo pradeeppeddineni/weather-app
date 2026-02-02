@@ -460,7 +460,98 @@ function renderMap() {
   });
 }
 
-/* ── Zoom Animation ────────────────────────────────── */
+/* ── Map Pinch-Zoom & Pan ─────────────────────────── */
+
+function setupMapZoom() {
+  const container = document.getElementById("mapContainer");
+  const svg = document.getElementById("indiaSvg");
+
+  let scale = 1, panX = 0, panY = 0;
+  let startDist = 0, startScale = 1;
+  let startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+  let isPanning = false;
+  const MIN_SCALE = 1, MAX_SCALE = 5;
+
+  function applyTransform() {
+    // Clamp pan so map doesn't go off screen
+    const rect = container.getBoundingClientRect();
+    const maxPanX = (rect.width * (scale - 1)) / 2;
+    const maxPanY = (rect.height * (scale - 1)) / 2;
+    panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+    panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+    svg.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    svg.style.transformOrigin = "center center";
+  }
+
+  function getDist(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  container.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      startDist = getDist(e.touches);
+      startScale = scale;
+    } else if (e.touches.length === 1 && scale > 1) {
+      isPanning = true;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startPanX = panX;
+      startPanY = panY;
+    }
+  }, { passive: false });
+
+  container.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dist = getDist(e.touches);
+      scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, startScale * (dist / startDist)));
+      if (scale <= 1) { panX = 0; panY = 0; }
+      applyTransform();
+    } else if (e.touches.length === 1 && isPanning && scale > 1) {
+      e.preventDefault();
+      panX = startPanX + (e.touches[0].clientX - startX);
+      panY = startPanY + (e.touches[0].clientY - startY);
+      applyTransform();
+    }
+  }, { passive: false });
+
+  container.addEventListener("touchend", (e) => {
+    if (e.touches.length < 2) {
+      isPanning = false;
+    }
+    // Snap back to 1x if close
+    if (scale < 1.1) {
+      scale = 1; panX = 0; panY = 0;
+      applyTransform();
+    }
+  });
+
+  // Mouse wheel zoom for desktop
+  container.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * delta));
+    if (scale <= 1) { panX = 0; panY = 0; }
+    applyTransform();
+  }, { passive: false });
+
+  // Double-tap to reset
+  let lastTap = 0;
+  container.addEventListener("touchend", (e) => {
+    if (e.touches.length > 0) return;
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      scale = 1; panX = 0; panY = 0;
+      applyTransform();
+    }
+    lastTap = now;
+  });
+}
+
+/* ── Zoom-to-City Animation ───────────────────────── */
 
 function zoomToCity(idx) {
   if (isZooming) return;
@@ -1195,6 +1286,9 @@ async function init() {
 
   // Render map with city markers
   renderMap();
+
+  // Setup map pinch-zoom & pan
+  setupMapZoom();
 
   // Setup navigation
   setupNav();
