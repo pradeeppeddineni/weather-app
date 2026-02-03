@@ -50,6 +50,36 @@ function formatHour(h) {
   return h < 12 ? h + "am" : (h - 12) + "pm";
 }
 
+function formatTimeIST(isoStr) {
+  if (!isoStr) return "--";
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function getUVLevel(uv) {
+  if (uv == null) return { label: "UV --", cls: "" };
+  const v = Math.round(uv);
+  if (v <= 2) return { label: `UV ${v}`, cls: "uv-low" };
+  if (v <= 5) return { label: `UV ${v}`, cls: "uv-moderate" };
+  if (v <= 7) return { label: `UV ${v}`, cls: "uv-high" };
+  if (v <= 10) return { label: `UV ${v}`, cls: "uv-very-high" };
+  return { label: `UV ${v}`, cls: "uv-extreme" };
+}
+
+function getAQILevel(aqi) {
+  if (aqi == null) return { label: "AQI --", cls: "" };
+  if (aqi <= 50) return { label: `AQI ${aqi}`, cls: "aqi-good" };
+  if (aqi <= 100) return { label: `AQI ${aqi}`, cls: "aqi-fair" };
+  if (aqi <= 150) return { label: `AQI ${aqi}`, cls: "aqi-moderate" };
+  if (aqi <= 200) return { label: `AQI ${aqi}`, cls: "aqi-poor" };
+  return { label: `AQI ${aqi}`, cls: "aqi-very-poor" };
+}
+
 function formatFullDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-IN", {
@@ -293,7 +323,7 @@ async function fetchHistorical(city) {
     `https://archive-api.open-meteo.com/v1/archive?` +
     `latitude=${city.lat}&longitude=${city.lon}` +
     `&start_date=${start}&end_date=${end}` +
-    `&daily=temperature_2m_max,temperature_2m_min,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum` +
     `&timezone=Asia%2FKolkata`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Historical API ${res.status}`);
@@ -304,11 +334,22 @@ async function fetchForecast(city) {
   const url =
     `https://api.open-meteo.com/v1/forecast?` +
     `latitude=${city.lat}&longitude=${city.lon}` +
-    `&daily=temperature_2m_max,temperature_2m_min,weather_code,sunshine_duration` +
-    `&hourly=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code,sunshine_duration,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max` +
+    `&hourly=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation_probability,precipitation,apparent_temperature` +
     `&timezone=Asia%2FKolkata&forecast_days=16&past_days=5`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Forecast API ${res.status}`);
+  return res.json();
+}
+
+async function fetchAirQuality(city) {
+  const url =
+    `https://air-quality-api.open-meteo.com/v1/air-quality?` +
+    `latitude=${city.lat}&longitude=${city.lon}` +
+    `&current=european_aqi,us_aqi,pm10,pm2_5` +
+    `&timezone=Asia%2FKolkata`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`AQI API ${res.status}`);
   return res.json();
 }
 
@@ -323,6 +364,11 @@ function mergeDailyData(historical, forecast) {
         min: historical.daily.temperature_2m_min[i],
         code: historical.daily.weather_code?.[i] ?? 0,
         sunshine: null,
+        precip: historical.daily.precipitation_sum?.[i] ?? null,
+        precipProb: null,
+        sunrise: null,
+        sunset: null,
+        uvIndex: null,
       });
     });
   }
@@ -336,6 +382,11 @@ function mergeDailyData(historical, forecast) {
           min: forecast.daily.temperature_2m_min[i],
           code: forecast.daily.weather_code?.[i] ?? 0,
           sunshine: forecast.daily.sunshine_duration?.[i] ?? null,
+          precip: forecast.daily.precipitation_sum?.[i] ?? null,
+          precipProb: forecast.daily.precipitation_probability_max?.[i] ?? null,
+          sunrise: forecast.daily.sunrise?.[i] ?? null,
+          sunset: forecast.daily.sunset?.[i] ?? null,
+          uvIndex: forecast.daily.uv_index_max?.[i] ?? null,
         });
       }
     });
@@ -352,6 +403,9 @@ function extractHourly(forecast) {
     code: forecast.hourly.weather_code?.[i] ?? 0,
     humidity: forecast.hourly.relative_humidity_2m?.[i] ?? null,
     wind: forecast.hourly.wind_speed_10m?.[i] ?? null,
+    precipProb: forecast.hourly.precipitation_probability?.[i] ?? null,
+    precip: forecast.hourly.precipitation?.[i] ?? null,
+    feelsLike: forecast.hourly.apparent_temperature?.[i] ?? null,
   }));
 }
 
@@ -652,6 +706,13 @@ function getCityCurrentData(city) {
     currentCode = todayDaily.code;
   }
 
+  let precipProb = null;
+  if (nearestHourly?.precipProb != null) {
+    precipProb = nearestHourly.precipProb;
+  } else if (todayDaily?.precipProb != null) {
+    precipProb = todayDaily.precipProb;
+  }
+
   return {
     temp: currentTemp,
     code: currentCode,
@@ -659,6 +720,7 @@ function getCityCurrentData(city) {
     low: todayDaily ? Math.round(todayDaily.min) : null,
     desc: getWeatherInfo(currentCode).desc,
     icon: getWeatherInfo(currentCode).icon,
+    precipProb,
   };
 }
 
@@ -708,12 +770,17 @@ function renderCitiesList(filter) {
       ? `<span class="hi">${info.high}°</span> / <span class="lo">${info.low}°</span>`
       : "--";
 
+    const precipChip = info && info.precipProb > 0
+      ? `<div class="city-card-precip">${info.precipProb}%</div>`
+      : "";
+
     card.innerHTML = `
       <div class="city-card-icon">${iconHtml}</div>
       <div class="city-card-info">
         <div class="city-card-name">${city.name}</div>
         <div class="city-card-desc">${desc}</div>
       </div>
+      ${precipChip}
       <div class="city-card-temps">
         <div class="city-card-current">${tempStr}</div>
         <div class="city-card-range">${rangeHtml}</div>
@@ -971,15 +1038,16 @@ async function addNewCity(geoResult) {
 
   // Fetch weather data for the new city
   try {
-    const [historical, forecast] = await Promise.all([
+    const [historical, forecast, aqi] = await Promise.all([
       fetchHistorical(newCity),
       fetchForecast(newCity),
+      fetchAirQuality(newCity).catch(() => null),
     ]);
     const daily = mergeDailyData(historical, forecast);
     const hourly = extractHourly(forecast);
-    cityDataMap[newCity.name] = { daily, hourly };
+    cityDataMap[newCity.name] = { daily, hourly, aqi: aqi?.current || null };
   } catch (err) {
-    cityDataMap[newCity.name] = { daily: [], hourly: [] };
+    cityDataMap[newCity.name] = { daily: [], hourly: [], aqi: null };
   }
 
   // Refresh map and close modal
@@ -1187,10 +1255,32 @@ function renderCity(idx) {
     : "";
   descEl.textContent = weatherInfo.desc + (todayMaxMin ? ". " + todayMaxMin : "");
 
+  // Feels-like
+  const feelsLikeEl = document.getElementById("feelsLike");
+  if (nearestHourly?.feelsLike != null && currentTemp !== "--") {
+    const diff = Math.abs(Math.round(nearestHourly.feelsLike) - currentTemp);
+    if (diff >= 2) {
+      feelsLikeEl.textContent = `Feels like ${Math.round(nearestHourly.feelsLike)}°`;
+    } else {
+      feelsLikeEl.textContent = "";
+    }
+  } else {
+    feelsLikeEl.textContent = "";
+  }
+
+  // Precipitation probability
+  let precipProbStr = "--";
+  if (nearestHourly?.precipProb != null) {
+    precipProbStr = nearestHourly.precipProb + "%";
+  } else if (todayDaily?.precipProb != null) {
+    precipProbStr = todayDaily.precipProb + "%";
+  }
+
   // Stats
   document.getElementById("windSpeed").textContent = currentWind;
   document.getElementById("humidity").textContent = currentHumidity;
   document.getElementById("sunHours").textContent = sunshineHrs;
+  document.getElementById("precipProb").textContent = precipProbStr;
 
   // Ambient glow
   const detailView = document.getElementById("detailView");
@@ -1201,6 +1291,23 @@ function renderCity(idx) {
       ? "rgba(249, 150, 80, 0.25)"
       : "rgba(96, 165, 250, 0.15)"
   );
+
+  // Sunrise / Sunset / UV
+  document.getElementById("sunriseTime").textContent = formatTimeIST(todayDaily?.sunrise);
+  document.getElementById("sunsetTime").textContent = formatTimeIST(todayDaily?.sunset);
+
+  const uvInfo = getUVLevel(todayDaily?.uvIndex);
+  const uvChip = document.getElementById("uvChip");
+  uvChip.textContent = uvInfo.label;
+  uvChip.className = "uv-chip" + (uvInfo.cls ? " " + uvInfo.cls : "");
+
+  // AQI
+  const aqiData = data.aqi;
+  const aqiVal = aqiData?.us_aqi ?? aqiData?.european_aqi ?? null;
+  const aqiInfo = getAQILevel(aqiVal);
+  const aqiChip = document.getElementById("aqiChip");
+  aqiChip.textContent = aqiInfo.label;
+  aqiChip.className = "aqi-chip" + (aqiInfo.cls ? " " + aqiInfo.cls : "");
 
   // Hourly forecast
   renderHourly(hourly, today, nowHour);
@@ -1227,10 +1334,14 @@ function renderHourly(hourly, today, nowHour) {
     const info = getWeatherInfo(h.code);
     const card = document.createElement("div");
     card.className = "hourly-card" + (i === 0 ? " now" : "");
+    const precipHtml = h.precipProb > 0
+      ? `<span class="hourly-precip">${h.precipProb}%</span>`
+      : "";
     card.innerHTML = `
       <span class="hourly-time">${i === 0 ? "Now" : formatHour(hHour)}</span>
       <span class="hourly-icon">${weatherSVGSmall(info.icon, 32)}</span>
       <span class="hourly-temp">${Math.round(h.temp)}°</span>
+      ${precipHtml}
     `;
     container.appendChild(card);
   });
@@ -1251,12 +1362,16 @@ function renderDaily(daily) {
     const info = getWeatherInfo(d.code);
     const left = ((d.min - allMin) / range) * 100;
     const width = ((d.max - d.min) / range) * 100;
+    const precipHtml = d.precipProb > 0
+      ? `<span class="daily-precip">${d.precipProb}%</span>`
+      : "";
 
     const row = document.createElement("div");
     row.className = "daily-row";
     row.innerHTML = `
       <span class="daily-day">${formatDay(d.date)}</span>
       <span class="daily-icon">${weatherSVGSmall(info.icon, 24)}</span>
+      ${precipHtml}
       <div class="daily-bar-wrap">
         <span class="daily-min">${Math.round(d.min)}°</span>
         <div class="daily-bar">
@@ -1409,6 +1524,7 @@ function renderChart() {
   const labels = daily.map(d => formatLabel(d.date));
   const maxTemps = daily.map(d => d.max);
   const minTemps = daily.map(d => d.min);
+  const precipData = daily.map(d => d.precip ?? 0);
   const palette = getChartPalette(city.name);
 
   // Gradient fills
@@ -1458,6 +1574,18 @@ function renderChart() {
           fill: true,
           ...segmentStyle([5, 4]),
         },
+        {
+          label: "Rain",
+          data: precipData,
+          type: "bar",
+          yAxisID: "yPrecip",
+          backgroundColor: "rgba(96,165,250,0.25)",
+          hoverBackgroundColor: "rgba(96,165,250,0.4)",
+          borderRadius: 2,
+          barPercentage: 0.6,
+          categoryPercentage: 0.8,
+          order: 1,
+        },
       ],
     },
     options: {
@@ -1479,6 +1607,9 @@ function renderChart() {
           callbacks: {
             label: c => {
               const val = c.parsed.y;
+              if (c.dataset.label === "Rain") {
+                return ` Rain: ${val != null ? val.toFixed(1) + "mm" : "N/A"}`;
+              }
               return ` ${c.dataset.label}: ${val != null ? val.toFixed(1) + "°C" : "N/A"}`;
             },
           },
@@ -1502,6 +1633,17 @@ function renderChart() {
             padding: 8,
           },
           grid: { color: "rgba(255,255,255,0.03)", drawBorder: false },
+        },
+        yPrecip: {
+          position: "right",
+          beginAtZero: true,
+          ticks: {
+            color: "rgba(96,165,250,0.35)",
+            font: { size: 9, family: "DM Sans" },
+            callback: v => v + "mm",
+            maxTicksLimit: 4,
+          },
+          grid: { display: false },
         },
       },
       animation: { duration: 500, easing: "easeOutQuart" },
@@ -1590,6 +1732,68 @@ function setupNav() {
   });
 }
 
+/* ── Pull-to-Refresh ───────────────────────────────── */
+
+async function refreshCurrentCity() {
+  const city = CITIES[currentCityIdx];
+  if (!city) return;
+  try {
+    const [historical, forecast, aqi] = await Promise.all([
+      fetchHistorical(city),
+      fetchForecast(city),
+      fetchAirQuality(city).catch(() => null),
+    ]);
+    const daily = mergeDailyData(historical, forecast);
+    const hourly = extractHourly(forecast);
+    cityDataMap[city.name] = { daily, hourly, aqi: aqi?.current || null };
+    renderCity(currentCityIdx);
+  } catch (err) {
+    console.error("Refresh failed:", err);
+  }
+}
+
+function setupPullToRefresh() {
+  const dv = document.getElementById("detailView");
+  const indicator = document.getElementById("pullRefresh");
+  let startY = 0, pulling = false, refreshing = false;
+
+  dv.addEventListener("touchstart", (e) => {
+    if (dv.scrollTop <= 0 && !refreshing && e.touches.length === 1) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  dv.addEventListener("touchmove", (e) => {
+    if (!pulling || refreshing) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 0 && dv.scrollTop <= 0) {
+      const progress = Math.min(dy / 80, 1);
+      indicator.style.top = (-50 + progress * 58) + "px";
+      indicator.style.opacity = progress;
+      indicator.querySelector(".pull-refresh-spinner").style.transform =
+        `rotate(${progress * 360}deg)`;
+    }
+  }, { passive: true });
+
+  dv.addEventListener("touchend", async () => {
+    if (!pulling || refreshing) return;
+    pulling = false;
+    const top = parseFloat(indicator.style.top) || -50;
+    if (top >= 0) {
+      refreshing = true;
+      indicator.classList.add("refreshing");
+      indicator.style.top = "8px";
+      indicator.style.opacity = "1";
+      await refreshCurrentCity();
+      indicator.classList.remove("refreshing");
+      refreshing = false;
+    }
+    indicator.style.top = "-50px";
+    indicator.style.opacity = "0";
+  });
+}
+
 /* ── Init ──────────────────────────────────────────── */
 
 async function loadAllCities() {
@@ -1599,16 +1803,17 @@ async function loadAllCities() {
 
   const promises = CITIES.map(async city => {
     try {
-      const [historical, forecast] = await Promise.all([
+      const [historical, forecast, aqi] = await Promise.all([
         fetchHistorical(city),
         fetchForecast(city),
+        fetchAirQuality(city).catch(() => null),
       ]);
       const daily = mergeDailyData(historical, forecast);
       const hourly = extractHourly(forecast);
-      cityDataMap[city.name] = { daily, hourly };
+      cityDataMap[city.name] = { daily, hourly, aqi: aqi?.current || null };
     } catch (err) {
       console.error(`Error loading ${city.name}:`, err);
-      cityDataMap[city.name] = { daily: [], hourly: [] };
+      cityDataMap[city.name] = { daily: [], hourly: [], aqi: null };
     } finally {
       loaded++;
       loadingBar.style.width = Math.round((loaded / total) * 100) + "%";
@@ -1636,6 +1841,9 @@ async function init() {
 
   // Setup navigation
   setupNav();
+
+  // Setup pull-to-refresh
+  setupPullToRefresh();
 }
 
 // Register service worker

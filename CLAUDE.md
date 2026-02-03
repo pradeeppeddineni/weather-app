@@ -55,3 +55,8 @@ python3 -m http.server 8000
 - Warm red (#f97066) for max temps, cool blue (#60a5fa) for min temps
 - Staggered fade-in animations, smooth transitions
 - Mobile-first, max-width 480px centered layout
+
+## Git Rules
+
+- Never add `Co-Authored-By` lines to commit messages
+- Do not include any Claude/AI attribution in commits

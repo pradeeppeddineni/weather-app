@@ -356,6 +356,13 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 .city-card-range .hi { color: var(--max-color) }
 .city-card-range .lo { color: var(--min-color) }
 
+.city-card-precip {
+  font-size:.65rem; font-weight:600; color:var(--min-color);
+  font-family:var(--font-heading);
+  background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2);
+  border-radius:6px; padding:2px 6px; flex-shrink:0;
+}
+
 .cities-empty {
   text-align: center; padding: 3rem 1rem;
   color: var(--text-muted); font-size: .9rem;
@@ -691,6 +698,24 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   pointer-events:none; z-index:0;
 }
 
+/* Pull to refresh */
+.pull-refresh {
+  position:absolute; top:-50px; left:50%; transform:translateX(-50%);
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  z-index:5; transition:top .3s ease, opacity .3s ease; opacity:0;
+}
+.pull-refresh.visible { top:8px; opacity:1 }
+.pull-refresh.refreshing { top:8px; opacity:1 }
+.pull-refresh-spinner {
+  width:24px; height:24px;
+  border:2.5px solid var(--border);
+  border-top-color:var(--accent);
+  border-radius:50%;
+}
+.pull-refresh.refreshing .pull-refresh-spinner {
+  animation: spin .8s linear infinite;
+}
+
 .detail-topbar {
   width:100%; display:flex; justify-content:space-between; align-items:center;
   padding: 1rem 0 .5rem; position:relative; z-index:2;
@@ -744,13 +769,49 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   color:var(--text-secondary); font-size:.95rem; text-align:center; margin-top:.25rem;
   position:relative; z-index:2; animation:fadeUp .5s ease-out .3s both;
 }
+.feels-like {
+  color:var(--text-muted); font-size:.8rem; text-align:center; margin-top:.2rem;
+  position:relative; z-index:2; animation:fadeUp .5s ease-out .35s both;
+  font-family:var(--font-heading); font-weight:500;
+}
+.feels-like:empty { display:none }
 
 .stats-row {
-  display:inline-flex; gap:2rem; justify-content:center; margin-top:1.5rem; padding:0 1rem;
+  display:inline-flex; gap:1.25rem; justify-content:center; margin-top:1.5rem; padding:0 1rem;
   position:relative; z-index:2; animation:fadeUp .5s ease-out .4s both;
+  flex-wrap:wrap;
 }
 .stat { display:flex; align-items:center; gap:.5rem; color:var(--text-secondary); font-size:.85rem }
 .stat-icon { opacity:.6; width:18px; height:18px }
+
+/* Sunrise/Sunset + UV + AQI row */
+.sun-times {
+  display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap;
+  margin-top:1rem; position:relative; z-index:2;
+  animation:fadeUp .5s ease-out .45s both;
+}
+.sun-time-item {
+  display:flex; align-items:center; gap:.35rem;
+  font-size:.75rem; color:var(--text-secondary);
+  font-family:var(--font-heading); font-weight:500;
+}
+.uv-chip, .aqi-chip {
+  font-size:.65rem; font-weight:700; font-family:var(--font-heading);
+  padding:3px 8px; border-radius:6px;
+  letter-spacing:.02em;
+}
+.uv-chip { background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.25) }
+.uv-chip.uv-low { background:rgba(34,197,94,0.15); color:#22c55e; border-color:rgba(34,197,94,0.25) }
+.uv-chip.uv-moderate { background:rgba(234,179,8,0.15); color:#eab308; border-color:rgba(234,179,8,0.25) }
+.uv-chip.uv-high { background:rgba(249,115,22,0.15); color:#f97316; border-color:rgba(249,115,22,0.25) }
+.uv-chip.uv-very-high { background:rgba(239,68,68,0.15); color:#ef4444; border-color:rgba(239,68,68,0.25) }
+.uv-chip.uv-extreme { background:rgba(168,85,247,0.15); color:#a855f7; border-color:rgba(168,85,247,0.25) }
+
+.aqi-chip.aqi-good { background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.25) }
+.aqi-chip.aqi-fair { background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.25) }
+.aqi-chip.aqi-moderate { background:rgba(249,115,22,0.15); color:#f97316; border:1px solid rgba(249,115,22,0.25) }
+.aqi-chip.aqi-poor { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.25) }
+.aqi-chip.aqi-very-poor { background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.25) }
 
 .section-header {
   width:100%; display:flex; align-items:center; gap:.5rem;
@@ -781,6 +842,10 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 .hourly-card.now .hourly-time { color:var(--accent) }
 .hourly-icon svg { width:32px; height:32px }
 .hourly-temp { font-family:var(--font-heading); font-weight:600; font-size:.95rem }
+.hourly-precip {
+  font-size:.6rem; font-weight:600; color:var(--min-color); opacity:.8;
+  font-family:var(--font-heading);
+}
 
 /* Daily list */
 .daily-list {
@@ -800,6 +865,11 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 .daily-bar { flex:1; height:4px; background:rgba(255,255,255,.06); border-radius:2px; overflow:hidden; position:relative }
 .daily-bar-fill { position:absolute; top:0; height:100%; border-radius:2px; background:linear-gradient(to right,var(--min-color),var(--max-color)) }
 .daily-max { font-size:.8rem; color:var(--max-color); width:32px; font-family:var(--font-heading); font-weight:500 }
+.daily-precip {
+  font-size:.65rem; font-weight:600; color:var(--min-color);
+  font-family:var(--font-heading); min-width:28px; text-align:center;
+  opacity:.8;
+}
 
 /* ══════════════════════════════════════════════════════
    CHART OVERLAY
@@ -865,6 +935,8 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 .cll { display:inline-block; width:18px; height:2px }
 .cll.solid { background:currentColor }
 .cll.dotted { background:repeating-linear-gradient(to right,var(--text-secondary) 0,var(--text-secondary) 3px,transparent 3px,transparent 6px) }
+.chart-legend-rain { color:var(--min-color) }
+.cll-bar { display:inline-block; width:10px; height:8px; background:rgba(96,165,250,0.4); border-radius:1px }
 .chart-container {
   width:100%; height:280px; position:relative;
   background: rgba(255,255,255,0.02);

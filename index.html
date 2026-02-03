@@ -19,7 +19,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -153,6 +153,9 @@
 
   <!-- ═══ DETAIL VIEW (city weather) ═══ -->
   <div class="detail-view" id="detailView">
+    <div class="pull-refresh" id="pullRefresh">
+      <div class="pull-refresh-spinner"></div>
+    </div>
     <div class="detail-topbar">
       <button class="back-btn" id="backBtn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -181,6 +184,7 @@
     </div>
 
     <p class="weather-desc" id="weatherDesc">Loading...</p>
+    <p class="feels-like" id="feelsLike"></p>
 
     <div class="stats-row">
       <div class="stat">
@@ -205,6 +209,34 @@
         </svg>
         <span id="sunHours">--</span>
       </div>
+      <div class="stat">
+        <svg class="stat-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          <path d="M12 13v4" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+        <span id="precipProb">--</span>
+      </div>
+    </div>
+
+    <div class="sun-times" id="sunTimes">
+      <div class="sun-time-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round">
+          <path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/>
+          <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/>
+          <line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
+        </svg>
+        <span id="sunriseTime">--</span>
+      </div>
+      <div class="sun-time-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97066" stroke-width="2" stroke-linecap="round">
+          <path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="13" x2="12" y2="20"/>
+          <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/>
+          <line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
+        </svg>
+        <span id="sunsetTime">--</span>
+      </div>
+      <div class="uv-chip" id="uvChip">UV --</div>
+      <div class="aqi-chip" id="aqiChip">AQI --</div>
     </div>
 
     <div class="section-header">
@@ -254,6 +286,7 @@
       <span class="chart-legend-item chart-legend-max"><span class="cll solid"></span> Max</span>
       <span class="chart-legend-item chart-legend-min"><span class="cll solid"></span> Min</span>
       <span class="chart-legend-item"><span class="cll dotted"></span> Forecast</span>
+      <span class="chart-legend-item chart-legend-rain"><span class="cll-bar"></span> Rain</span>
     </div>
     <div class="chart-container">
       <canvas id="historyChart"></canvas>
@@ -272,13 +305,13 @@
     </div>
   </div>
 
-  <script src="cities.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <script src="cities.js?v=9"></script>
+  <script src="app.js?v=9"></script>
   <script>
     // Force clear old service worker caches
     if ('caches' in window) {
       caches.keys().then(names => names.forEach(n => {
-        if (n !== 'temptrack-v8') caches.delete(n);
+        if (n !== 'temptrack-v9') caches.delete(n);
       }));
     }
   </script>
