@@ -743,6 +743,7 @@ function setupCardSwipe(wrapper, card, deleteBg, idx, city) {
   let startX = 0, startY = 0, currentX = 0;
   let isSwiping = false, directionLocked = false;
   let touchHandled = false;
+  let movedSignificantly = false;
 
   wrapper.addEventListener("touchstart", (e) => {
     if (e.touches.length !== 1) return;
@@ -752,6 +753,7 @@ function setupCardSwipe(wrapper, card, deleteBg, idx, city) {
     isSwiping = false;
     directionLocked = false;
     touchHandled = false;
+    movedSignificantly = false;
     card.style.transition = "none";
   }, { passive: true });
 
@@ -759,6 +761,11 @@ function setupCardSwipe(wrapper, card, deleteBg, idx, city) {
     if (e.touches.length !== 1) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
+
+    // Track if finger moved enough to be a scroll/swipe (not a tap)
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      movedSignificantly = true;
+    }
 
     if (!directionLocked) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
@@ -791,11 +798,13 @@ function setupCardSwipe(wrapper, card, deleteBg, idx, city) {
     card.style.transition = "transform .25s cubic-bezier(.4,0,.2,1)";
 
     if (!isSwiping) {
-      // It was a tap — check if card is swiped open
-      if (wrapper.classList.contains("swiped")) {
-        closeOpenSwipe();
-      } else {
-        openCityFromList(idx);
+      // Only open city on a true tap (no significant finger movement)
+      if (!movedSignificantly) {
+        if (wrapper.classList.contains("swiped")) {
+          closeOpenSwipe();
+        } else {
+          openCityFromList(idx);
+        }
       }
       return;
     }
@@ -911,18 +920,20 @@ async function searchGeoCity(query) {
     '<p class="add-city-hint">Searching...</p>';
 
   try {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=8&language=en&format=json`;
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=20&language=en&format=json`;
     const res = await fetch(url);
     const data = await res.json();
 
     const container = document.getElementById("addCityResults");
-    if (!data.results || data.results.length === 0) {
-      container.innerHTML = '<p class="add-city-hint">No cities found</p>';
+    // Filter to India only (country_code "IN")
+    const indiaResults = (data.results || []).filter(r => r.country_code === "IN");
+    if (indiaResults.length === 0) {
+      container.innerHTML = '<p class="add-city-hint">No Indian cities found</p>';
       return;
     }
 
     container.innerHTML = "";
-    data.results.forEach(r => {
+    indiaResults.slice(0, 8).forEach(r => {
       const exists = CITIES.find(c => c.name === r.name && Math.abs(c.lat - r.latitude) < 0.5);
       const div = document.createElement("div");
       div.className = "add-city-result" + (exists ? " already" : "");
