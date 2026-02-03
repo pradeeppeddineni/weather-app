@@ -410,37 +410,27 @@ function latLonToSVG(lat, lon) {
   return { x, y };
 }
 
+const WEATHER_EMOJI = {
+  sun: "\u2600\uFE0F", "cloud-sun": "\u26C5", cloud: "\u2601\uFE0F",
+  fog: "\uD83C\uDF2B\uFE0F", drizzle: "\uD83C\uDF26\uFE0F", rain: "\uD83C\uDF27\uFE0F",
+  "rain-heavy": "\uD83C\uDF27\uFE0F", snow: "\u2744\uFE0F", thunder: "\u26A1",
+};
+
 function renderMap() {
   const svg = document.getElementById("indiaSvg");
   let content = `<path class="india-path" d="${INDIA_SVG_PATH}"/>`;
 
-  const today = todayStr();
-  const nowHour = nowHourIST();
-
   CITIES.forEach((city, idx) => {
     const { x, y } = latLonToSVG(city.lat, city.lon);
-    const data = cityDataMap[city.name];
+    const info = getCityCurrentData(city);
 
-    let temp = "--°";
-    if (data) {
-      const nearestHourly = data.hourly.find(h => {
-        const hDate = h.time.slice(0, 10);
-        const hHour = parseInt(h.time.slice(11, 13), 10);
-        return hDate === today && hHour === nowHour;
-      });
-      if (nearestHourly) {
-        temp = Math.round(nearestHourly.temp) + "°";
-      } else {
-        const todayDaily = data.daily.find(d => d.date === today);
-        if (todayDaily) {
-          temp = Math.round(todayDaily.max) + "°";
-        }
-      }
-    }
+    const temp = info && info.temp != null ? info.temp + "°" : "--°";
+    const emoji = info ? (WEATHER_EMOJI[info.icon] || "") : "";
 
     const isLeft = city.anchor === "l";
     const textAnchor = isLeft ? "end" : "start";
     const dx = isLeft ? -8 : 8;
+    const emojiDx = isLeft ? dx - 14 : dx + (temp.length * 6 + 2);
 
     content += `
       <g class="svg-marker" data-idx="${idx}">
@@ -448,6 +438,7 @@ function renderMap() {
         <circle class="marker-dot-outer" cx="${x}" cy="${y}" r="7"/>
         <circle class="marker-dot-inner" cx="${x}" cy="${y}" r="3"/>
         <text class="marker-temp-text" x="${x + dx}" y="${y - 3}" text-anchor="${textAnchor}">${temp}</text>
+        <text class="marker-emoji" x="${x + emojiDx}" y="${y - 3}" font-size="10" text-anchor="${textAnchor}">${emoji}</text>
         <text class="marker-name-text" x="${x + dx}" y="${y + 7}" text-anchor="${textAnchor}">${city.name}</text>
       </g>`;
   });
@@ -666,6 +657,124 @@ function renderCitiesList(filter) {
     `;
     container.appendChild(card);
   });
+}
+
+/* ── Add City Feature ─────────────────────────────── */
+
+function loadCustomCities() {
+  try {
+    const saved = localStorage.getItem("customCities");
+    if (saved) {
+      const custom = JSON.parse(saved);
+      custom.forEach(c => {
+        if (!CITIES.find(existing => existing.name === c.name)) {
+          CITIES.push(c);
+        }
+      });
+    }
+  } catch (e) {}
+}
+
+function saveCustomCities() {
+  // Save only user-added cities (those not in the original 14)
+  const origNames = [
+    "Bikaner","Ludhiana","Amritsar","Kota","Rajkot","Nadiad",
+    "Nagpur","Indore","Lalitpur","Shahjahanpur","Gonda",
+    "Begusarai","Hajipur","Kolkata"
+  ];
+  const custom = CITIES.filter(c => !origNames.includes(c.name));
+  localStorage.setItem("customCities", JSON.stringify(custom));
+}
+
+let addCityTimer = null;
+
+function openAddCityModal() {
+  document.getElementById("addCityModal").classList.add("open");
+  document.getElementById("addCitySearch").value = "";
+  document.getElementById("addCityResults").innerHTML =
+    '<p class="add-city-hint">Type a city name to search</p>';
+  setTimeout(() => document.getElementById("addCitySearch").focus(), 100);
+}
+
+function closeAddCityModal() {
+  document.getElementById("addCityModal").classList.remove("open");
+}
+
+async function searchGeoCity(query) {
+  if (query.length < 2) {
+    document.getElementById("addCityResults").innerHTML =
+      '<p class="add-city-hint">Type a city name to search</p>';
+    return;
+  }
+
+  document.getElementById("addCityResults").innerHTML =
+    '<p class="add-city-hint">Searching...</p>';
+
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=8&language=en&format=json`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const container = document.getElementById("addCityResults");
+    if (!data.results || data.results.length === 0) {
+      container.innerHTML = '<p class="add-city-hint">No cities found</p>';
+      return;
+    }
+
+    container.innerHTML = "";
+    data.results.forEach(r => {
+      const exists = CITIES.find(c => c.name === r.name && Math.abs(c.lat - r.latitude) < 0.5);
+      const div = document.createElement("div");
+      div.className = "add-city-result" + (exists ? " already" : "");
+
+      const region = [r.admin1, r.country].filter(Boolean).join(", ");
+      div.innerHTML = `
+        <div class="add-city-result-info">
+          <div class="add-city-result-name">${r.name}</div>
+          <div class="add-city-result-country">${region}</div>
+        </div>
+        <div class="add-city-result-add">${exists ? "Added" : "Add"}</div>
+      `;
+
+      if (!exists) {
+        div.addEventListener("click", () => addNewCity(r));
+      }
+      container.appendChild(div);
+    });
+  } catch (e) {
+    document.getElementById("addCityResults").innerHTML =
+      '<p class="add-city-hint">Search failed. Try again.</p>';
+  }
+}
+
+async function addNewCity(geoResult) {
+  const newCity = {
+    name: geoResult.name,
+    lat: geoResult.latitude,
+    lon: geoResult.longitude,
+    anchor: geoResult.longitude > 78 ? "r" : "l",
+  };
+
+  CITIES.push(newCity);
+  saveCustomCities();
+
+  // Fetch weather data for the new city
+  try {
+    const [historical, forecast] = await Promise.all([
+      fetchHistorical(newCity),
+      fetchForecast(newCity),
+    ]);
+    const daily = mergeDailyData(historical, forecast);
+    const hourly = extractHourly(forecast);
+    cityDataMap[newCity.name] = { daily, hourly };
+  } catch (err) {
+    cityDataMap[newCity.name] = { daily: [], hourly: [] };
+  }
+
+  // Refresh map and close modal
+  renderMap();
+  closeAddCityModal();
+  renderCitiesList();
 }
 
 function openCityFromList(idx) {
@@ -1228,6 +1337,17 @@ function setupNav() {
     renderCitiesList(e.target.value);
   });
 
+  // Add city
+  document.getElementById("addCityBtn").addEventListener("click", openAddCityModal);
+  document.getElementById("addCityClose").addEventListener("click", closeAddCityModal);
+  document.getElementById("addCityModal").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeAddCityModal();
+  });
+  document.getElementById("addCitySearch").addEventListener("input", (e) => {
+    clearTimeout(addCityTimer);
+    addCityTimer = setTimeout(() => searchGeoCity(e.target.value.trim()), 350);
+  });
+
   // Chart filter buttons — date range
   document.querySelectorAll(".chart-filter-btn[data-range]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1276,6 +1396,7 @@ async function loadAllCities() {
 }
 
 async function init() {
+  loadCustomCities();
   await loadAllCities();
 
   // Hide loading screen
