@@ -108,7 +108,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   position: absolute; inset: 0;
   max-width: 480px; margin: 0 auto;
   display: flex; flex-direction: column;
-  background: var(--bg);
+  background: linear-gradient(180deg, #0d1020 0%, #0b0d14 30%, #0a0f1a 70%, #0d1228 100%);
   transition: opacity .4s ease, visibility .4s ease;
   overflow: hidden;
 }
@@ -120,16 +120,58 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 }
 .map-title {
   font-family: var(--font-heading);
-  font-weight: 700; font-size: 1.5rem;
+  font-weight: 700; font-size: 1.6rem;
   letter-spacing: -.03em;
+  background: linear-gradient(135deg, #eaeaf0 30%, var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
-.map-title span { color: var(--text-secondary); font-weight: 400 }
+.map-title span {
+  -webkit-text-fill-color: rgba(255,255,255,0.45);
+  font-weight: 400;
+}
 .map-subtitle { color: var(--text-muted); font-size: .8rem; margin-top: .15rem }
 .map-date {
   color: var(--text-muted); font-size: .72rem; margin-top: .25rem;
   font-family: var(--font-heading); font-weight: 500;
   letter-spacing: .02em;
 }
+
+/* Map summary strip */
+.map-summary {
+  display: flex; gap: 8px;
+  padding: .6rem 1.5rem;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.map-summary::after {
+  content: ""; flex-shrink: 0; width: 1px;
+}
+.map-summary::-webkit-scrollbar { display: none }
+.map-summary-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  font-size: .75rem;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.map-summary-chip .chip-icon { font-size: .9rem; line-height: 1 }
+.map-summary-chip .chip-val { color: #fff; font-weight: 700 }
+.chip-hot { border-color: rgba(249,112,102,0.25); background: rgba(249,112,102,0.08) }
+.chip-hot .chip-val { color: var(--max-color) }
+.chip-cold { border-color: rgba(96,165,250,0.25); background: rgba(96,165,250,0.08) }
+.chip-cold .chip-val { color: var(--min-color) }
 .detail-date {
   color: var(--text-muted); font-size: .75rem;
   font-family: var(--font-heading); font-weight: 500;
@@ -148,44 +190,74 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   filter: blur(3px) brightness(.6);
 }
 
+.map-glow {
+  position: absolute;
+  width: 420px; height: 480px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -52%);
+  background:
+    radial-gradient(ellipse at 40% 35%, rgba(78,168,245,0.14) 0%, transparent 55%),
+    radial-gradient(ellipse at 60% 65%, rgba(139,92,246,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(249,112,102,0.06) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  animation: mapGlowPulse 6s ease-in-out infinite alternate;
+}
+@keyframes mapGlowPulse {
+  0% { opacity: .7 }
+  100% { opacity: 1 }
+}
+
 .map-container svg {
   width: 100%; height: 100%;
   display: block;
   transform-origin: 0 0;
   transition: transform .1s ease-out;
+  position: relative; z-index: 1;
 }
 
 /* India outline */
 .india-path {
-  fill: rgba(255,255,255,0.04);
-  stroke: rgba(255,255,255,0.15);
+  fill: url(#mapFillGrad);
+  stroke: rgba(78,168,245,0.3);
   stroke-width: 1.2;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 24px rgba(78,168,245,0.08));
+  filter: drop-shadow(0 0 20px rgba(78,168,245,0.2)) drop-shadow(0 0 60px rgba(78,168,245,0.1));
 }
 
 /* SVG city markers */
 .svg-marker { cursor: pointer }
 .svg-marker:hover .marker-dot-outer { r: 10 }
 
-.marker-dot-inner { fill: var(--max-color) }
-.marker-dot-outer { fill: rgba(249,112,102,0.25); transition: r .2s ease }
-.marker-dot-glow { fill: rgba(249,112,102,0.08) }
+.marker-dot-inner { fill: #fff }
+.marker-dot-outer { fill: rgba(249,112,102,0.35); transition: r .2s ease }
+.marker-dot-glow {
+  fill: rgba(249,112,102,0.12);
+  animation: markerPulse 3s ease-in-out infinite;
+}
+
+@keyframes markerPulse {
+  0%, 100% { opacity: .5; r: 14 }
+  50% { opacity: 1; r: 18 }
+}
 
 .marker-temp-text {
-  fill: var(--max-color);
+  fill: #fff;
   font-family: "Space Grotesk", sans-serif;
   font-weight: 700;
   font-size: 11px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
 }
 .marker-name-text {
-  fill: rgba(255,255,255,0.4);
+  fill: rgba(255,255,255,0.5);
   font-family: "DM Sans", sans-serif;
   font-weight: 500;
   font-size: 7px;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.4));
 }
 .marker-emoji {
   font-size: 9px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
 }
 
 /* ══════════════════════════════════════════════════════

@@ -19,7 +19,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
@@ -47,8 +47,22 @@
         <p class="map-subtitle">Tap a city to explore</p>
         <p class="map-date" id="mapDate"></p>
       </div>
+      <div class="map-summary" id="mapSummary"></div>
       <div class="map-container" id="mapContainer">
-        <svg id="indiaSvg" viewBox="0 0 500 600"></svg>
+        <div class="map-glow"></div>
+        <svg id="indiaSvg" viewBox="0 0 500 600">
+          <defs>
+            <radialGradient id="mapFillGrad" cx="50%" cy="45%" r="55%">
+              <stop offset="0%" stop-color="rgba(78,168,245,0.15)"/>
+              <stop offset="60%" stop-color="rgba(78,168,245,0.05)"/>
+              <stop offset="100%" stop-color="rgba(78,168,245,0)"/>
+            </radialGradient>
+            <filter id="mapGlow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+          </defs>
+        </svg>
       </div>
     </div>
   </div>
@@ -246,13 +260,13 @@
     </div>
   </div>
 
-  <script src="cities.js?v=6"></script>
-  <script src="app.js?v=6"></script>
+  <script src="cities.js?v=7"></script>
+  <script src="app.js?v=7"></script>
   <script>
     // Force clear old service worker caches
     if ('caches' in window) {
       caches.keys().then(names => names.forEach(n => {
-        if (n !== 'temptrack-v6') caches.delete(n);
+        if (n !== 'temptrack-v7') caches.delete(n);
       }));
     }
   </script>

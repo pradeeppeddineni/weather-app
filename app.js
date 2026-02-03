@@ -412,34 +412,72 @@ function latLonToSVG(lat, lon) {
 
 const WEATHER_EMOJI = {
   sun: "\u2600\uFE0F", "cloud-sun": "\u26C5", cloud: "\u2601\uFE0F",
-  fog: "\uD83C\uDF2B\uFE0F", drizzle: "\uD83C\uDF26\uFE0F", rain: "\uD83C\uDF27\uFE0F",
+  fog: "\u2601\uFE0F", drizzle: "\uD83C\uDF26\uFE0F", rain: "\uD83C\uDF27\uFE0F",
   "rain-heavy": "\uD83C\uDF27\uFE0F", snow: "\u2744\uFE0F", thunder: "\u26A1",
 };
 
 function renderMap() {
   const svg = document.getElementById("indiaSvg");
-  let content = `<path class="india-path" d="${INDIA_SVG_PATH}"/>`;
 
-  CITIES.forEach((city, idx) => {
+  // Preserve <defs> from HTML
+  const defs = svg.querySelector("defs");
+  const defsHTML = defs ? defs.outerHTML : "";
+
+  let content = defsHTML + `<path class="india-path" d="${INDIA_SVG_PATH}"/>`;
+
+  let hottest = null, coldest = null;
+  const cityTemps = [];
+
+  // Build label positions first, then resolve overlaps
+  const labels = CITIES.map((city, idx) => {
     const { x, y } = latLonToSVG(city.lat, city.lon);
     const info = getCityCurrentData(city);
+    const isLeft = city.anchor === "l";
+    return { city, idx, x, y, info, isLeft, labelY: y };
+  });
 
-    const temp = info && info.temp != null ? info.temp + "°" : "--°";
+  // Simple collision avoidance: if two labels are close, push them apart
+  const MIN_Y_GAP = 16;
+  for (let i = 0; i < labels.length; i++) {
+    for (let j = i + 1; j < labels.length; j++) {
+      const a = labels[i], b = labels[j];
+      const dx = Math.abs(a.x - b.x);
+      const dy = Math.abs(a.labelY - b.labelY);
+      if (dx < 60 && dy < MIN_Y_GAP) {
+        const mid = (a.labelY + b.labelY) / 2;
+        if (a.labelY <= b.labelY) {
+          a.labelY = mid - MIN_Y_GAP / 2;
+          b.labelY = mid + MIN_Y_GAP / 2;
+        } else {
+          b.labelY = mid - MIN_Y_GAP / 2;
+          a.labelY = mid + MIN_Y_GAP / 2;
+        }
+      }
+    }
+  }
+
+  labels.forEach(({ city, idx, x, y, info, isLeft, labelY }) => {
+    const temp = info && info.temp != null ? info.temp + "\u00B0" : "--\u00B0";
     const emoji = info ? (WEATHER_EMOJI[info.icon] || "") : "";
 
-    const isLeft = city.anchor === "l";
+    if (info && info.temp != null) {
+      cityTemps.push({ name: city.name, temp: info.temp, icon: info.icon });
+      if (!hottest || info.temp > hottest.temp) hottest = { name: city.name, temp: info.temp };
+      if (!coldest || info.temp < coldest.temp) coldest = { name: city.name, temp: info.temp };
+    }
+
     const textAnchor = isLeft ? "end" : "start";
-    const dx = isLeft ? -8 : 8;
-    const emojiDx = isLeft ? dx - 14 : dx + (temp.length * 6 + 2);
+    const tdx = isLeft ? -8 : 8;
+    const emojiDx = isLeft ? tdx - 14 : tdx + (temp.length * 6 + 2);
 
     content += `
       <g class="svg-marker" data-idx="${idx}">
         <circle class="marker-dot-glow" cx="${x}" cy="${y}" r="14"/>
         <circle class="marker-dot-outer" cx="${x}" cy="${y}" r="7"/>
         <circle class="marker-dot-inner" cx="${x}" cy="${y}" r="3"/>
-        <text class="marker-temp-text" x="${x + dx}" y="${y - 3}" text-anchor="${textAnchor}">${temp}</text>
-        <text class="marker-emoji" x="${x + emojiDx}" y="${y - 3}" font-size="10" text-anchor="${textAnchor}">${emoji}</text>
-        <text class="marker-name-text" x="${x + dx}" y="${y + 7}" text-anchor="${textAnchor}">${city.name}</text>
+        <text class="marker-temp-text" x="${x + tdx}" y="${labelY - 3}" text-anchor="${textAnchor}">${temp}</text>
+        <text class="marker-emoji" x="${x + emojiDx}" y="${labelY - 3}" font-size="10" text-anchor="${textAnchor}">${emoji}</text>
+        <text class="marker-name-text" x="${x + tdx}" y="${labelY + 7}" text-anchor="${textAnchor}">${city.name}</text>
       </g>`;
   });
 
@@ -449,6 +487,20 @@ function renderMap() {
   svg.querySelectorAll(".svg-marker").forEach(g => {
     g.addEventListener("click", () => zoomToCity(parseInt(g.dataset.idx)));
   });
+
+  // Render summary chips
+  const summary = document.getElementById("mapSummary");
+  if (summary && cityTemps.length > 0) {
+    const avg = Math.round(cityTemps.reduce((s, c) => s + c.temp, 0) / cityTemps.length);
+    const rainyCount = cityTemps.filter(c => ["rain", "rain-heavy", "drizzle", "thunder"].includes(c.icon)).length;
+    let chips = "";
+    if (hottest) chips += `<div class="map-summary-chip chip-hot"><span class="chip-icon">\u{1F525}</span>${hottest.name} <span class="chip-val">${hottest.temp}\u00B0</span></div>`;
+    if (coldest) chips += `<div class="map-summary-chip chip-cold"><span class="chip-icon">\u{1F9CA}</span>${coldest.name} <span class="chip-val">${coldest.temp}\u00B0</span></div>`;
+    chips += `<div class="map-summary-chip"><span class="chip-icon">\u{1F321}\uFE0F</span>Avg <span class="chip-val">${avg}\u00B0</span></div>`;
+    if (rainyCount > 0) chips += `<div class="map-summary-chip"><span class="chip-icon">\u{1F327}\uFE0F</span><span class="chip-val">${rainyCount}</span> rain</div>`;
+    chips += `<div class="map-summary-chip"><span class="chip-icon">\u{1F4CD}</span><span class="chip-val">${CITIES.length}</span> cities</div>`;
+    summary.innerHTML = chips;
+  }
 }
 
 /* ── Map Pinch-Zoom & Pan ─────────────────────────── */
