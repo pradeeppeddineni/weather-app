@@ -360,6 +360,104 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   color: var(--text-muted); font-size: .9rem;
 }
 
+/* Swipe-to-delete wrapper */
+.city-card-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+.city-card-delete-bg {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 80px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 600;
+  font-family: var(--font-heading);
+  letter-spacing: .02em;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.city-card-wrapper.swiped .city-card-delete-bg {
+  pointer-events: auto;
+  opacity: 1;
+}
+.city-card-delete-bg svg {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+}
+.city-card-wrapper .city-card {
+  position: relative;
+  z-index: 1;
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+  will-change: transform;
+}
+.city-card-wrapper.swiped .city-card {
+  transform: translateX(-80px);
+}
+
+/* Confirmation modal */
+.confirm-modal {
+  position: fixed; inset: 0;
+  z-index: 100;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center;
+}
+.confirm-modal.open { display: flex }
+.confirm-panel {
+  width: 280px;
+  background: rgba(22,24,35,0.95);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  text-align: center;
+  animation: confirmIn .2s ease-out;
+}
+@keyframes confirmIn {
+  from { opacity: 0; transform: scale(.92) }
+  to { opacity: 1; transform: scale(1) }
+}
+.confirm-panel p {
+  font-family: var(--font-heading);
+  font-weight: 600; font-size: 1rem;
+  margin-bottom: .35rem;
+}
+.confirm-panel .confirm-city-name {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+.confirm-actions {
+  display: flex; gap: .6rem;
+}
+.confirm-actions button {
+  flex: 1;
+  padding: .6rem .5rem;
+  font-size: .8rem;
+  font-weight: 600;
+  font-family: var(--font-heading);
+  border-radius: 10px;
+  transition: background .2s, opacity .2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.confirm-cancel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.confirm-cancel:hover { background: rgba(255,255,255,0.08) }
+.confirm-yes {
+  background: #ef4444;
+  color: #fff;
+}
+.confirm-yes:hover { opacity: .85 }
+
 /* Add City Button */
 .add-city-btn {
   display: flex; align-items: center; justify-content: center; gap: .5rem;

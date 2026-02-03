@@ -683,11 +683,23 @@ function renderCitiesList(filter) {
   container.innerHTML = "";
   filtered.forEach(({ city, idx }) => {
     const info = getCityCurrentData(city);
+
+    // Swipe wrapper
+    const wrapper = document.createElement("div");
+    wrapper.className = "city-card-wrapper";
+    wrapper.dataset.idx = idx;
+
+    // Delete background
+    const deleteBg = document.createElement("div");
+    deleteBg.className = "city-card-delete-bg";
+    deleteBg.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete`;
+    wrapper.appendChild(deleteBg);
+
+    // Card
     const card = document.createElement("div");
     card.className = "city-card";
     const accentColor = info ? (CARD_COLORS[info.icon] || "rgba(255,255,255,0.08)") : "rgba(255,255,255,0.08)";
     card.style.setProperty("--card-accent", accentColor);
-    card.addEventListener("click", () => openCityFromList(idx));
 
     const iconHtml = info ? weatherSVGSmall(info.icon, 36) : weatherSVGSmall("cloud", 36);
     const tempStr = info && info.temp != null ? info.temp + "°" : "--°";
@@ -707,8 +719,144 @@ function renderCitiesList(filter) {
         <div class="city-card-range">${rangeHtml}</div>
       </div>
     `;
-    container.appendChild(card);
+    wrapper.appendChild(card);
+    container.appendChild(wrapper);
+
+    // Setup swipe & tap handlers
+    setupCardSwipe(wrapper, card, deleteBg, idx, city);
   });
+}
+
+/* ── Swipe-to-Delete ──────────────────────────────── */
+
+let _openSwipeWrapper = null;
+
+function closeOpenSwipe() {
+  if (_openSwipeWrapper) {
+    _openSwipeWrapper.classList.remove("swiped");
+    _openSwipeWrapper.querySelector(".city-card").style.transform = "";
+    _openSwipeWrapper = null;
+  }
+}
+
+function setupCardSwipe(wrapper, card, deleteBg, idx, city) {
+  let startX = 0, startY = 0, currentX = 0;
+  let isSwiping = false, directionLocked = false;
+  let touchHandled = false;
+
+  wrapper.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    currentX = 0;
+    isSwiping = false;
+    directionLocked = false;
+    touchHandled = false;
+    card.style.transition = "none";
+  }, { passive: true });
+
+  wrapper.addEventListener("touchmove", (e) => {
+    if (e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    if (!directionLocked) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      directionLocked = true;
+      // If vertical movement dominates, don't swipe
+      if (Math.abs(dy) > Math.abs(dx)) return;
+      isSwiping = true;
+      // Close any other open swipe
+      if (_openSwipeWrapper && _openSwipeWrapper !== wrapper) {
+        closeOpenSwipe();
+      }
+    }
+
+    if (!isSwiping) return;
+    e.preventDefault();
+
+    // Only allow left swipe (negative dx), cap at -80px
+    currentX = Math.max(-80, Math.min(0, dx));
+    card.style.transform = `translateX(${currentX}px)`;
+
+    // Show delete bg once we start moving
+    if (currentX < -5) {
+      deleteBg.style.opacity = "1";
+      deleteBg.style.pointerEvents = "auto";
+    }
+  }, { passive: false });
+
+  wrapper.addEventListener("touchend", () => {
+    touchHandled = true;
+    card.style.transition = "transform .25s cubic-bezier(.4,0,.2,1)";
+
+    if (!isSwiping) {
+      // It was a tap — check if card is swiped open
+      if (wrapper.classList.contains("swiped")) {
+        closeOpenSwipe();
+      } else {
+        openCityFromList(idx);
+      }
+      return;
+    }
+
+    if (currentX < -40) {
+      // Snap open
+      card.style.transform = "translateX(-80px)";
+      wrapper.classList.add("swiped");
+      _openSwipeWrapper = wrapper;
+    } else {
+      // Snap back
+      card.style.transform = "";
+      wrapper.classList.remove("swiped");
+      deleteBg.style.opacity = "0";
+      deleteBg.style.pointerEvents = "none";
+      if (_openSwipeWrapper === wrapper) _openSwipeWrapper = null;
+    }
+  });
+
+  // Click handler for mouse (desktop) — skip if touch already handled
+  card.addEventListener("click", () => {
+    if (touchHandled) { touchHandled = false; return; }
+    if (wrapper.classList.contains("swiped")) {
+      closeOpenSwipe();
+    } else {
+      openCityFromList(idx);
+    }
+  });
+
+  // Delete button tap
+  deleteBg.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showDeleteConfirm(idx, city.name);
+  });
+}
+
+let _pendingDeleteIdx = null;
+
+function showDeleteConfirm(idx, cityName) {
+  _pendingDeleteIdx = idx;
+  document.getElementById("confirmCityName").textContent = `Remove "${cityName}" from your list`;
+  document.getElementById("confirmModal").classList.add("open");
+}
+
+function hideDeleteConfirm() {
+  document.getElementById("confirmModal").classList.remove("open");
+  _pendingDeleteIdx = null;
+  closeOpenSwipe();
+}
+
+function removeCity(idx) {
+  const cityName = CITIES[idx].name;
+  CITIES.splice(idx, 1);
+  delete cityDataMap[cityName];
+  saveCustomCities();
+  // Adjust currentCityIdx if needed
+  if (currentCityIdx >= CITIES.length) {
+    currentCityIdx = Math.max(0, CITIES.length - 1);
+  }
+  renderCitiesList();
+  renderMap();
 }
 
 /* ── Add City Feature ─────────────────────────────── */
@@ -1398,6 +1546,18 @@ function setupNav() {
   document.getElementById("addCitySearch").addEventListener("input", (e) => {
     clearTimeout(addCityTimer);
     addCityTimer = setTimeout(() => searchGeoCity(e.target.value.trim()), 350);
+  });
+
+  // Confirm delete modal
+  document.getElementById("confirmCancel").addEventListener("click", hideDeleteConfirm);
+  document.getElementById("confirmYes").addEventListener("click", () => {
+    if (_pendingDeleteIdx != null) {
+      removeCity(_pendingDeleteIdx);
+    }
+    hideDeleteConfirm();
+  });
+  document.getElementById("confirmModal").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) hideDeleteConfirm();
   });
 
   // Chart filter buttons — date range
