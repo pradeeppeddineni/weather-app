@@ -80,6 +80,12 @@ function getAQILevel(aqi) {
   return { label: `AQI ${aqi}`, cls: "aqi-very-poor" };
 }
 
+function degreesToCompass(deg) {
+  if (deg == null) return "";
+  const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
 function formatFullDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-IN", {
@@ -323,7 +329,7 @@ async function fetchHistorical(city) {
     `https://archive-api.open-meteo.com/v1/archive?` +
     `latitude=${city.lat}&longitude=${city.lon}` +
     `&start_date=${start}&end_date=${end}` +
-    `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,precipitation_hours,sunshine_duration,wind_speed_10m_max,wind_gusts_10m_max` +
     `&timezone=Asia%2FKolkata`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Historical API ${res.status}`);
@@ -334,8 +340,9 @@ async function fetchForecast(city) {
   const url =
     `https://api.open-meteo.com/v1/forecast?` +
     `latitude=${city.lat}&longitude=${city.lon}` +
-    `&daily=temperature_2m_max,temperature_2m_min,weather_code,sunshine_duration,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max` +
-    `&hourly=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation_probability,precipitation,apparent_temperature` +
+    `&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,apparent_temperature,dew_point_2m,pressure_msl,cloud_cover,wind_gusts_10m,is_day` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code,sunshine_duration,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max,precipitation_hours,daylight_duration,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,apparent_temperature_max,apparent_temperature_min` +
+    `&hourly=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation_probability,precipitation,apparent_temperature,dew_point_2m,visibility,wind_direction_10m,wind_gusts_10m,cloud_cover,is_day,cape,pressure_msl` +
     `&timezone=Asia%2FKolkata&forecast_days=16&past_days=5`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Forecast API ${res.status}`);
@@ -346,10 +353,21 @@ async function fetchAirQuality(city) {
   const url =
     `https://air-quality-api.open-meteo.com/v1/air-quality?` +
     `latitude=${city.lat}&longitude=${city.lon}` +
-    `&current=european_aqi,us_aqi,pm10,pm2_5` +
-    `&timezone=Asia%2FKolkata`;
+    `&current=european_aqi,us_aqi,pm10,pm2_5,nitrogen_dioxide,ozone,dust,carbon_monoxide,sulphur_dioxide` +
+    `&hourly=us_aqi,pm2_5,pm10` +
+    `&timezone=Asia%2FKolkata&forecast_days=2`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`AQI API ${res.status}`);
+  return res.json();
+}
+
+async function fetchFloodRisk(city) {
+  const url =
+    `https://flood-api.open-meteo.com/v1/flood?` +
+    `latitude=${city.lat}&longitude=${city.lon}` +
+    `&daily=river_discharge,river_discharge_mean,river_discharge_max&forecast_days=7`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Flood API ${res.status}`);
   return res.json();
 }
 
@@ -363,12 +381,19 @@ function mergeDailyData(historical, forecast) {
         max: historical.daily.temperature_2m_max[i],
         min: historical.daily.temperature_2m_min[i],
         code: historical.daily.weather_code?.[i] ?? 0,
-        sunshine: null,
+        sunshine: historical.daily.sunshine_duration?.[i] ?? null,
         precip: historical.daily.precipitation_sum?.[i] ?? null,
+        precipHours: historical.daily.precipitation_hours?.[i] ?? null,
         precipProb: null,
         sunrise: null,
         sunset: null,
         uvIndex: null,
+        daylightDuration: null,
+        windMax: historical.daily.wind_speed_10m_max?.[i] ?? null,
+        gustsMax: historical.daily.wind_gusts_10m_max?.[i] ?? null,
+        windDir: null,
+        feelsLikeMax: null,
+        feelsLikeMin: null,
       });
     });
   }
@@ -383,10 +408,17 @@ function mergeDailyData(historical, forecast) {
           code: forecast.daily.weather_code?.[i] ?? 0,
           sunshine: forecast.daily.sunshine_duration?.[i] ?? null,
           precip: forecast.daily.precipitation_sum?.[i] ?? null,
+          precipHours: forecast.daily.precipitation_hours?.[i] ?? null,
           precipProb: forecast.daily.precipitation_probability_max?.[i] ?? null,
           sunrise: forecast.daily.sunrise?.[i] ?? null,
           sunset: forecast.daily.sunset?.[i] ?? null,
           uvIndex: forecast.daily.uv_index_max?.[i] ?? null,
+          daylightDuration: forecast.daily.daylight_duration?.[i] ?? null,
+          windMax: forecast.daily.wind_speed_10m_max?.[i] ?? null,
+          gustsMax: forecast.daily.wind_gusts_10m_max?.[i] ?? null,
+          windDir: forecast.daily.wind_direction_10m_dominant?.[i] ?? null,
+          feelsLikeMax: forecast.daily.apparent_temperature_max?.[i] ?? null,
+          feelsLikeMin: forecast.daily.apparent_temperature_min?.[i] ?? null,
         });
       }
     });
@@ -406,6 +438,24 @@ function extractHourly(forecast) {
     precipProb: forecast.hourly.precipitation_probability?.[i] ?? null,
     precip: forecast.hourly.precipitation?.[i] ?? null,
     feelsLike: forecast.hourly.apparent_temperature?.[i] ?? null,
+    dewPoint: forecast.hourly.dew_point_2m?.[i] ?? null,
+    visibility: forecast.hourly.visibility?.[i] ?? null,
+    windDir: forecast.hourly.wind_direction_10m?.[i] ?? null,
+    gusts: forecast.hourly.wind_gusts_10m?.[i] ?? null,
+    cloudCover: forecast.hourly.cloud_cover?.[i] ?? null,
+    isDay: forecast.hourly.is_day?.[i] ?? null,
+    cape: forecast.hourly.cape?.[i] ?? null,
+    pressure: forecast.hourly.pressure_msl?.[i] ?? null,
+  }));
+}
+
+function extractAqiHourly(aqiData) {
+  if (!aqiData?.hourly?.time) return [];
+  return aqiData.hourly.time.map((t, i) => ({
+    time: t,
+    usAqi: aqiData.hourly.us_aqi?.[i] ?? null,
+    pm25: aqiData.hourly.pm2_5?.[i] ?? null,
+    pm10: aqiData.hourly.pm10?.[i] ?? null,
   }));
 }
 
@@ -419,6 +469,7 @@ let navigatedFrom = "map"; // "map" or "cities"
 let newsLoaded = false;
 let activeChartRange = "all";
 let activeChartPred = "both";
+let activeMapMode = "default";
 
 /* ── Tab Switching ─────────────────────────────────── */
 
@@ -557,6 +608,191 @@ function renderMap() {
   }
 }
 
+/* ── Map Overlay Helpers ──────────────────────────── */
+
+function lerpColor(a, b, t) {
+  const ah = parseInt(a.slice(1), 16);
+  const bh = parseInt(b.slice(1), 16);
+  const ar = (ah >> 16) & 255, ag = (ah >> 8) & 255, ab = ah & 255;
+  const br = (bh >> 16) & 255, bg = (bh >> 8) & 255, bb = bh & 255;
+  const rr = Math.round(ar + (br - ar) * t);
+  const rg = Math.round(ag + (bg - ag) * t);
+  const rb = Math.round(ab + (bb - ab) * t);
+  return `rgb(${rr},${rg},${rb})`;
+}
+
+function interpolateColor(value, stops) {
+  if (value <= stops[0].val) return stops[0].color;
+  if (value >= stops[stops.length - 1].val) return stops[stops.length - 1].color;
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (value >= stops[i].val && value <= stops[i + 1].val) {
+      const t = (value - stops[i].val) / (stops[i + 1].val - stops[i].val);
+      return lerpColor(stops[i].color, stops[i + 1].color, t);
+    }
+  }
+  return stops[stops.length - 1].color;
+}
+
+const COLOR_SCALES = {
+  temp: [
+    { val: 15, color: "#3b82f6" },
+    { val: 20, color: "#22c55e" },
+    { val: 30, color: "#eab308" },
+    { val: 35, color: "#f97316" },
+    { val: 40, color: "#ef4444" },
+  ],
+  aqi: [
+    { val: 0, color: "#22c55e" },
+    { val: 50, color: "#eab308" },
+    { val: 100, color: "#f97316" },
+    { val: 150, color: "#ef4444" },
+    { val: 200, color: "#a855f7" },
+  ],
+  rain: [
+    { val: 0, color: "#1e3a5f" },
+    { val: 1, color: "#60a5fa" },
+    { val: 5, color: "#3b82f6" },
+    { val: 10, color: "#1e40af" },
+  ],
+  wind: [
+    { val: 0, color: "#22c55e" },
+    { val: 10, color: "#eab308" },
+    { val: 20, color: "#f97316" },
+    { val: 30, color: "#ef4444" },
+  ],
+};
+
+function getOverlayValue(city, mode) {
+  const info = getCityCurrentData(city);
+  if (!info) return null;
+  switch (mode) {
+    case "temp": return info.temp;
+    case "aqi": return info.aqi;
+    case "rain": {
+      const data = cityDataMap[city.name];
+      const today = todayStr();
+      const todayDaily = data?.daily?.find(d => d.date === today);
+      return todayDaily?.precip ?? 0;
+    }
+    case "wind": return info.windSpeed;
+    default: return null;
+  }
+}
+
+function getOverlayLabel(city, mode) {
+  const val = getOverlayValue(city, mode);
+  if (val == null) return "--";
+  switch (mode) {
+    case "temp": return val + "°";
+    case "aqi": return "AQI " + Math.round(val);
+    case "rain": return val.toFixed(1) + "mm";
+    case "wind": return Math.round(val) + " km/h";
+    default: return "--";
+  }
+}
+
+function renderMapOverlay() {
+  const mode = activeMapMode;
+  if (mode === "default") { renderMap(); return; }
+
+  // Re-render base map first (resets labels to default)
+  renderMap();
+
+  const svg = document.getElementById("indiaSvg");
+  const legendEl = document.getElementById("mapLegend");
+
+  const scale = COLOR_SCALES[mode];
+  if (!scale) return;
+
+  // Create overlay group
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.setAttribute("class", "map-overlay-g");
+  g.setAttribute("clip-path", "url(#indiaClip)");
+  g.setAttribute("filter", "url(#heatBlur)");
+
+  CITIES.forEach(city => {
+    const val = getOverlayValue(city, mode);
+    if (val == null) return;
+    const { x, y } = latLonToSVG(city.lat, city.lon);
+    const color = interpolateColor(val, scale);
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", x);
+    circle.setAttribute("cy", y);
+    circle.setAttribute("r", "80");
+    circle.setAttribute("fill", color);
+    circle.setAttribute("opacity", "0.5");
+    g.appendChild(circle);
+  });
+
+  // Insert overlay before markers
+  const firstMarker = svg.querySelector(".svg-marker");
+  if (firstMarker) {
+    svg.insertBefore(g, firstMarker);
+  } else {
+    svg.appendChild(g);
+  }
+
+  // Ensure defs has clipPath and filter
+  let defs = svg.querySelector("defs");
+  if (defs && !defs.querySelector("#indiaClip")) {
+    const ns = "http://www.w3.org/2000/svg";
+    const clip = document.createElementNS(ns, "clipPath");
+    clip.setAttribute("id", "indiaClip");
+    const clipPath = document.createElementNS(ns, "path");
+    clipPath.setAttribute("d", INDIA_SVG_PATH);
+    clip.appendChild(clipPath);
+    defs.appendChild(clip);
+
+    const filter = document.createElementNS(ns, "filter");
+    filter.setAttribute("id", "heatBlur");
+    const blur = document.createElementNS(ns, "feGaussianBlur");
+    blur.setAttribute("stdDeviation", "40");
+    filter.appendChild(blur);
+    defs.appendChild(filter);
+  }
+
+  // Update marker labels for overlay mode
+  svg.querySelectorAll(".svg-marker").forEach(marker => {
+    const idx = parseInt(marker.dataset.idx);
+    const city = CITIES[idx];
+    const label = getOverlayLabel(city, mode);
+    const tempText = marker.querySelector(".marker-temp-text");
+    if (tempText) tempText.textContent = label;
+    const emojiText = marker.querySelector(".marker-emoji");
+    if (emojiText) emojiText.textContent = "";
+  });
+
+  // Show legend
+  if (legendEl) {
+    const min = scale[0];
+    const max = scale[scale.length - 1];
+    const gradColors = scale.map((s, i) => {
+      const pct = (i / (scale.length - 1)) * 100;
+      return `${s.color} ${pct}%`;
+    }).join(", ");
+    const unit = mode === "temp" ? "°" : mode === "aqi" ? "" : mode === "rain" ? "mm" : "km/h";
+    legendEl.innerHTML = `
+      <div class="map-legend-bar" style="background:linear-gradient(to right,${gradColors})"></div>
+      <div class="map-legend-labels"><span>${min.val}${unit}</span><span>${max.val}${unit}</span></div>
+    `;
+    legendEl.style.display = "";
+  }
+}
+
+function setMapMode(mode) {
+  activeMapMode = mode;
+  document.querySelectorAll(".map-mode-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+  if (mode === "default") {
+    renderMap();
+    const legendEl = document.getElementById("mapLegend");
+    if (legendEl) legendEl.style.display = "none";
+  } else {
+    renderMapOverlay();
+  }
+}
+
 /* ── Map Pinch-Zoom & Pan ─────────────────────────── */
 
 function setupMapZoom() {
@@ -688,30 +924,56 @@ function getCityCurrentData(city) {
   const today = todayStr();
   const nowHour = nowHourIST();
   const todayDaily = data.daily.find(d => d.date === today);
+  const cur = data.current;
 
   let currentTemp = null;
   let currentCode = 0;
+  let windSpeed = null;
+  let windDir = null;
+  let humidity = null;
+  let cloudCover = null;
 
-  const nearestHourly = data.hourly.find(h => {
+  // Prefer current API data
+  if (cur) {
+    currentTemp = Math.round(cur.temperature_2m);
+    currentCode = cur.weather_code;
+    windSpeed = cur.wind_speed_10m;
+    windDir = cur.wind_direction_10m;
+    humidity = cur.relative_humidity_2m;
+    cloudCover = cur.cloud_cover;
+  } else {
+    const nearestHourly = data.hourly.find(h => {
+      const hDate = h.time.slice(0, 10);
+      const hHour = parseInt(h.time.slice(11, 13), 10);
+      return hDate === today && hHour === nowHour;
+    });
+
+    if (nearestHourly) {
+      currentTemp = Math.round(nearestHourly.temp);
+      currentCode = nearestHourly.code;
+      windSpeed = nearestHourly.wind;
+      windDir = nearestHourly.windDir;
+      humidity = nearestHourly.humidity;
+      cloudCover = nearestHourly.cloudCover;
+    } else if (todayDaily) {
+      currentTemp = Math.round((todayDaily.max + todayDaily.min) / 2);
+      currentCode = todayDaily.code;
+    }
+  }
+
+  let precipProb = null;
+  const nearestH = data.hourly.find(h => {
     const hDate = h.time.slice(0, 10);
     const hHour = parseInt(h.time.slice(11, 13), 10);
     return hDate === today && hHour === nowHour;
   });
-
-  if (nearestHourly) {
-    currentTemp = Math.round(nearestHourly.temp);
-    currentCode = nearestHourly.code;
-  } else if (todayDaily) {
-    currentTemp = Math.round((todayDaily.max + todayDaily.min) / 2);
-    currentCode = todayDaily.code;
-  }
-
-  let precipProb = null;
-  if (nearestHourly?.precipProb != null) {
-    precipProb = nearestHourly.precipProb;
+  if (nearestH?.precipProb != null) {
+    precipProb = nearestH.precipProb;
   } else if (todayDaily?.precipProb != null) {
     precipProb = todayDaily.precipProb;
   }
+
+  const aqiVal = data.aqi?.us_aqi ?? data.aqi?.european_aqi ?? null;
 
   return {
     temp: currentTemp,
@@ -721,6 +983,11 @@ function getCityCurrentData(city) {
     desc: getWeatherInfo(currentCode).desc,
     icon: getWeatherInfo(currentCode).icon,
     precipProb,
+    windSpeed,
+    windDir,
+    humidity,
+    cloudCover,
+    aqi: aqiVal,
   };
 }
 
@@ -1038,16 +1305,24 @@ async function addNewCity(geoResult) {
 
   // Fetch weather data for the new city
   try {
-    const [historical, forecast, aqi] = await Promise.all([
+    const [historical, forecast, aqi, flood] = await Promise.all([
       fetchHistorical(newCity),
       fetchForecast(newCity),
       fetchAirQuality(newCity).catch(() => null),
+      fetchFloodRisk(newCity).catch(() => null),
     ]);
     const daily = mergeDailyData(historical, forecast);
     const hourly = extractHourly(forecast);
-    cityDataMap[newCity.name] = { daily, hourly, aqi: aqi?.current || null };
+    const aqiHourly = aqi ? extractAqiHourly(aqi) : [];
+    cityDataMap[newCity.name] = {
+      daily, hourly,
+      current: forecast.current || null,
+      aqi: aqi?.current || null,
+      aqiHourly,
+      flood: flood?.daily || null,
+    };
   } catch (err) {
-    cityDataMap[newCity.name] = { daily: [], hourly: [], aqi: null };
+    cityDataMap[newCity.name] = { daily: [], hourly: [], current: null, aqi: null, aqiHourly: [], flood: null };
   }
 
   // Refresh map and close modal
@@ -1191,6 +1466,7 @@ function renderCity(idx) {
   if (!data) return;
 
   const { daily, hourly } = data;
+  const cur = data.current;
   const today = todayStr();
   const todayDaily = daily.find(d => d.date === today);
   const nowHour = nowHourIST();
@@ -1200,11 +1476,18 @@ function renderCity(idx) {
     `${city.name}, <span>India</span>`;
   document.getElementById("detailDate").textContent = formatFullDate(today);
 
-  // Current temp
+  // Current temp — prefer current API, fallback to hourly
   let currentTemp = "--";
   let currentCode = 0;
   let currentWind = "--";
+  let currentWindDir = null;
   let currentHumidity = "--";
+  let currentDewPoint = null;
+  let currentPressure = null;
+  let currentCloudCover = null;
+  let currentGusts = null;
+  let currentFeelsLike = null;
+  let currentVisibility = null;
   let sunshineHrs = "--";
 
   const nearestHourly = hourly.find(h => {
@@ -1213,11 +1496,30 @@ function renderCity(idx) {
     return hDate === today && hHour === nowHour;
   });
 
-  if (nearestHourly) {
+  if (cur) {
+    currentTemp = Math.round(cur.temperature_2m);
+    currentCode = cur.weather_code;
+    currentWind = cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) + " " + degreesToCompass(cur.wind_direction_10m) : "--";
+    currentWindDir = cur.wind_direction_10m;
+    currentHumidity = cur.relative_humidity_2m != null ? cur.relative_humidity_2m + "%" : "--";
+    currentDewPoint = cur.dew_point_2m;
+    currentPressure = cur.pressure_msl;
+    currentCloudCover = cur.cloud_cover;
+    currentGusts = cur.wind_gusts_10m;
+    currentFeelsLike = cur.apparent_temperature;
+    currentVisibility = nearestHourly?.visibility ?? null;
+  } else if (nearestHourly) {
     currentTemp = Math.round(nearestHourly.temp);
     currentCode = nearestHourly.code;
-    currentWind = nearestHourly.wind != null ? nearestHourly.wind + "km/hr" : "--";
+    currentWind = nearestHourly.wind != null ? Math.round(nearestHourly.wind) + " " + degreesToCompass(nearestHourly.windDir) : "--";
+    currentWindDir = nearestHourly.windDir;
     currentHumidity = nearestHourly.humidity != null ? nearestHourly.humidity + "%" : "--";
+    currentDewPoint = nearestHourly.dewPoint;
+    currentPressure = nearestHourly.pressure;
+    currentCloudCover = nearestHourly.cloudCover;
+    currentGusts = nearestHourly.gusts;
+    currentFeelsLike = nearestHourly.feelsLike;
+    currentVisibility = nearestHourly.visibility;
   } else if (todayDaily) {
     currentTemp = Math.round((todayDaily.max + todayDaily.min) / 2);
     currentCode = todayDaily.code;
@@ -1239,8 +1541,8 @@ function renderCity(idx) {
   // Icon drop shadow
   const svgEl = iconWrap.querySelector("svg");
   if (svgEl) {
-    const isWarm = ["sun", "cloud-sun"].includes(weatherInfo.icon);
-    svgEl.style.filter = isWarm
+    const isWarmIcon = ["sun", "cloud-sun"].includes(weatherInfo.icon);
+    svgEl.style.filter = isWarmIcon
       ? "drop-shadow(0 8px 32px rgba(249, 150, 80, 0.35))"
       : "drop-shadow(0 8px 32px rgba(96, 165, 250, 0.25))";
   }
@@ -1255,17 +1557,58 @@ function renderCity(idx) {
     : "";
   descEl.textContent = weatherInfo.desc + (todayMaxMin ? ". " + todayMaxMin : "");
 
-  // Feels-like
+  // Feels-like + Dew point + Comfort
   const feelsLikeEl = document.getElementById("feelsLike");
-  if (nearestHourly?.feelsLike != null && currentTemp !== "--") {
-    const diff = Math.abs(Math.round(nearestHourly.feelsLike) - currentTemp);
-    if (diff >= 2) {
-      feelsLikeEl.textContent = `Feels like ${Math.round(nearestHourly.feelsLike)}°`;
+  let feelsText = "";
+  if (currentFeelsLike != null && currentTemp !== "--") {
+    const diff = Math.abs(Math.round(currentFeelsLike) - currentTemp);
+    if (diff >= 2) feelsText = `Feels like ${Math.round(currentFeelsLike)}°`;
+  }
+  let dewText = "";
+  if (currentDewPoint != null) dewText = `Dew point ${Math.round(currentDewPoint)}°`;
+  feelsLikeEl.textContent = [feelsText, dewText].filter(Boolean).join("  ·  ");
+
+  // Comfort chip
+  const comfortChip = document.getElementById("comfortChip");
+  if (comfortChip) {
+    if (currentDewPoint != null) {
+      let comfortLabel, comfortCls;
+      if (currentDewPoint < 16) { comfortLabel = "Comfortable"; comfortCls = "comfort-ok"; }
+      else if (currentDewPoint < 21) { comfortLabel = "Warm"; comfortCls = "comfort-warm"; }
+      else if (currentDewPoint < 24) { comfortLabel = "Hot"; comfortCls = "comfort-hot"; }
+      else { comfortLabel = "Oppressive"; comfortCls = "comfort-oppressive"; }
+      comfortChip.textContent = comfortLabel;
+      comfortChip.className = "comfort-chip " + comfortCls;
+      comfortChip.style.display = "";
     } else {
-      feelsLikeEl.textContent = "";
+      comfortChip.style.display = "none";
     }
-  } else {
-    feelsLikeEl.textContent = "";
+  }
+
+  // Yesterday comparison
+  const yesterdayComp = document.getElementById("yesterdayComp");
+  if (yesterdayComp) {
+    const yesterday = daysAgo(1);
+    const yesterdayHourly = hourly.find(h => {
+      const hDate = h.time.slice(0, 10);
+      const hHour = parseInt(h.time.slice(11, 13), 10);
+      return hDate === yesterday && hHour === nowHour;
+    });
+    if (yesterdayHourly && currentTemp !== "--") {
+      const diff = currentTemp - Math.round(yesterdayHourly.temp);
+      if (diff !== 0) {
+        const absDiff = Math.abs(diff);
+        const word = diff > 0 ? "warmer" : "cooler";
+        const cls = diff > 0 ? "yesterday-warmer" : "yesterday-cooler";
+        yesterdayComp.textContent = `${absDiff}° ${word} than yesterday`;
+        yesterdayComp.className = "yesterday-comp " + cls;
+        yesterdayComp.style.display = "";
+      } else {
+        yesterdayComp.style.display = "none";
+      }
+    } else {
+      yesterdayComp.style.display = "none";
+    }
   }
 
   // Precipitation probability
@@ -1276,11 +1619,27 @@ function renderCity(idx) {
     precipProbStr = todayDaily.precipProb + "%";
   }
 
+  // Visibility
+  let visStr = "--";
+  if (currentVisibility != null) {
+    visStr = (currentVisibility / 1000).toFixed(1) + "km";
+  }
+
+  // Cloud cover
+  let cloudStr = "--";
+  if (currentCloudCover != null) {
+    cloudStr = currentCloudCover + "%";
+  }
+
   // Stats
   document.getElementById("windSpeed").textContent = currentWind;
   document.getElementById("humidity").textContent = currentHumidity;
   document.getElementById("sunHours").textContent = sunshineHrs;
   document.getElementById("precipProb").textContent = precipProbStr;
+  const visStat = document.getElementById("visibility");
+  if (visStat) visStat.textContent = visStr;
+  const cloudStat = document.getElementById("cloudCover");
+  if (cloudStat) cloudStat.textContent = cloudStr;
 
   // Ambient glow
   const detailView = document.getElementById("detailView");
@@ -1292,22 +1651,101 @@ function renderCity(idx) {
       : "rgba(96, 165, 250, 0.15)"
   );
 
-  // Sunrise / Sunset / UV
+  // Sunrise / Sunset / UV / Daylight
   document.getElementById("sunriseTime").textContent = formatTimeIST(todayDaily?.sunrise);
   document.getElementById("sunsetTime").textContent = formatTimeIST(todayDaily?.sunset);
+
+  const daylightEl = document.getElementById("daylightDuration");
+  if (daylightEl && todayDaily?.daylightDuration != null) {
+    daylightEl.textContent = (todayDaily.daylightDuration / 3600).toFixed(1) + "hr daylight";
+    daylightEl.style.display = "";
+  } else if (daylightEl) {
+    daylightEl.style.display = "none";
+  }
 
   const uvInfo = getUVLevel(todayDaily?.uvIndex);
   const uvChip = document.getElementById("uvChip");
   uvChip.textContent = uvInfo.label;
   uvChip.className = "uv-chip" + (uvInfo.cls ? " " + uvInfo.cls : "");
 
-  // AQI
+  // AQI chip
   const aqiData = data.aqi;
   const aqiVal = aqiData?.us_aqi ?? aqiData?.european_aqi ?? null;
   const aqiInfo = getAQILevel(aqiVal);
   const aqiChip = document.getElementById("aqiChip");
   aqiChip.textContent = aqiInfo.label;
   aqiChip.className = "aqi-chip" + (aqiInfo.cls ? " " + aqiInfo.cls : "");
+
+  // Storm risk chip (CAPE-based)
+  const stormChip = document.getElementById("stormChip");
+  if (stormChip) {
+    const cape = nearestHourly?.cape ?? null;
+    if (cape != null && cape >= 300) {
+      let stormLabel, stormCls;
+      if (cape >= 2500) { stormLabel = "Severe Storm Risk"; stormCls = "storm-severe"; }
+      else if (cape >= 1000) { stormLabel = "High Storm Risk"; stormCls = "storm-high"; }
+      else { stormLabel = "Moderate Storm Risk"; stormCls = "storm-moderate"; }
+      stormChip.textContent = stormLabel;
+      stormChip.className = "storm-chip " + stormCls;
+      stormChip.style.display = "";
+    } else {
+      stormChip.style.display = "none";
+    }
+  }
+
+  // Dust alert chip
+  const dustChip = document.getElementById("dustChip");
+  if (dustChip) {
+    const dust = aqiData?.dust ?? null;
+    if (dust != null && dust > 50) {
+      if (dust > 150) {
+        dustChip.textContent = "Dust Severe";
+        dustChip.className = "dust-chip dust-severe";
+      } else {
+        dustChip.textContent = "Dust Alert";
+        dustChip.className = "dust-chip dust-alert";
+      }
+      dustChip.style.display = "";
+    } else {
+      dustChip.style.display = "none";
+    }
+  }
+
+  // Flood risk chip
+  const floodChip = document.getElementById("floodChip");
+  if (floodChip) {
+    const floodData = data.flood;
+    if (floodData?.river_discharge_max && floodData?.river_discharge_mean) {
+      const maxDischarge = Math.max(...floodData.river_discharge_max.filter(v => v != null));
+      const meanDischarge = floodData.river_discharge_mean.filter(v => v != null);
+      const avgMean = meanDischarge.length > 0 ? meanDischarge.reduce((a, b) => a + b, 0) / meanDischarge.length : 0;
+      if (avgMean > 0 && maxDischarge / avgMean > 3) {
+        floodChip.textContent = "Flood Risk";
+        floodChip.className = "flood-chip flood-risk";
+        floodChip.style.display = "";
+      } else if (avgMean > 0 && maxDischarge / avgMean > 2) {
+        floodChip.textContent = "Flood Watch";
+        floodChip.className = "flood-chip flood-watch";
+        floodChip.style.display = "";
+      } else {
+        floodChip.style.display = "none";
+      }
+    } else {
+      floodChip.style.display = "none";
+    }
+  }
+
+  // Wind compass
+  renderWindCompass(cur?.wind_speed_10m ?? nearestHourly?.wind, currentWindDir, currentGusts);
+
+  // Pressure card
+  renderPressureCard(currentPressure, hourly, today, nowHour);
+
+  // AQI breakdown panel
+  renderAqiBreakdown(aqiData, aqiVal);
+
+  // AQI hourly trend
+  renderAqiTrend(data.aqiHourly, today, nowHour);
 
   // Hourly forecast
   renderHourly(hourly, today, nowHour);
@@ -1337,11 +1775,15 @@ function renderHourly(hourly, today, nowHour) {
     const precipHtml = h.precipProb > 0
       ? `<span class="hourly-precip">${h.precipProb}%</span>`
       : "";
+    const cloudHtml = h.cloudCover != null
+      ? `<span class="hourly-cloud">${h.cloudCover}%</span>`
+      : "";
     card.innerHTML = `
       <span class="hourly-time">${i === 0 ? "Now" : formatHour(hHour)}</span>
       <span class="hourly-icon">${weatherSVGSmall(info.icon, 32)}</span>
       <span class="hourly-temp">${Math.round(h.temp)}°</span>
       ${precipHtml}
+      ${cloudHtml}
     `;
     container.appendChild(card);
   });
@@ -1352,7 +1794,7 @@ function renderDaily(daily) {
   container.innerHTML = "";
 
   const today = todayStr();
-  const futureDays = daily.filter(d => d.date >= today).slice(0, 7);
+  const futureDays = daily.filter(d => d.date >= today).slice(0, 16);
 
   const allMin = Math.min(...futureDays.map(d => d.min));
   const allMax = Math.max(...futureDays.map(d => d.max));
@@ -1365,6 +1807,9 @@ function renderDaily(daily) {
     const precipHtml = d.precipProb > 0
       ? `<span class="daily-precip">${d.precipProb}%</span>`
       : "";
+    const rainDurHtml = d.precipHours != null && d.precipHours > 0
+      ? `<span class="daily-rain-dur">~${Math.round(d.precipHours)}hr</span>`
+      : "";
 
     const row = document.createElement("div");
     row.className = "daily-row";
@@ -1372,6 +1817,7 @@ function renderDaily(daily) {
       <span class="daily-day">${formatDay(d.date)}</span>
       <span class="daily-icon">${weatherSVGSmall(info.icon, 24)}</span>
       ${precipHtml}
+      ${rainDurHtml}
       <div class="daily-bar-wrap">
         <span class="daily-min">${Math.round(d.min)}°</span>
         <div class="daily-bar">
@@ -1382,6 +1828,186 @@ function renderDaily(daily) {
     `;
     container.appendChild(row);
   });
+}
+
+/* ── Wind Compass ─────────────────────────────────── */
+
+function renderWindCompass(speed, dir, gusts) {
+  const container = document.getElementById("windCompass");
+  if (!container) return;
+  if (speed == null || dir == null) { container.innerHTML = ""; return; }
+
+  const arrowAngle = dir;
+  const speedStr = Math.round(speed);
+  const gustsStr = gusts != null ? Math.round(gusts) : null;
+
+  container.innerHTML = `
+    <svg viewBox="0 0 120 120" width="120" height="120">
+      <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+      <circle cx="60" cy="60" r="40" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+      <text x="60" y="14" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="DM Sans" font-weight="600">N</text>
+      <text x="110" y="63" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9" font-family="DM Sans">E</text>
+      <text x="60" y="116" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9" font-family="DM Sans">S</text>
+      <text x="10" y="63" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9" font-family="DM Sans">W</text>
+      <g transform="rotate(${arrowAngle}, 60, 60)">
+        <line x1="60" y1="22" x2="60" y2="55" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+        <polygon points="60,18 55,28 65,28" fill="var(--accent)"/>
+      </g>
+      <text x="60" y="58" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" font-family="Space Grotesk">${speedStr}</text>
+      <text x="60" y="72" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8" font-family="DM Sans">km/h</text>
+      ${gustsStr != null ? `<text x="60" y="84" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="7.5" font-family="DM Sans">Gusts ${gustsStr}</text>` : ""}
+    </svg>
+  `;
+}
+
+/* ── Pressure Card ────────────────────────────────── */
+
+function renderPressureCard(currentPressure, hourly, today, nowHour) {
+  const container = document.getElementById("pressureCard");
+  if (!container) return;
+  if (currentPressure == null) { container.innerHTML = ""; return; }
+
+  // Gather past 6h and next 6h pressure from hourly
+  const startIdx = hourly.findIndex(h => {
+    const hDate = h.time.slice(0, 10);
+    const hHour = parseInt(h.time.slice(11, 13), 10);
+    return hDate === today && hHour === nowHour;
+  });
+
+  let trendArrow = "→";
+  let trendLabel = "Steady";
+  let trendCls = "trend-steady";
+  const sparkData = [];
+
+  if (startIdx >= 3) {
+    const past3h = hourly[startIdx - 3]?.pressure;
+    if (past3h != null) {
+      const diff = currentPressure - past3h;
+      if (diff > 1) { trendArrow = "↑"; trendLabel = "Rising"; trendCls = "trend-rising"; }
+      else if (diff < -1) { trendArrow = "↓"; trendLabel = "Falling"; trendCls = "trend-falling"; }
+    }
+  }
+
+  // Sparkline data: 6h back to 6h forward
+  const sparkStart = Math.max(0, startIdx - 6);
+  const sparkEnd = Math.min(hourly.length, startIdx + 7);
+  for (let i = sparkStart; i < sparkEnd; i++) {
+    if (hourly[i]?.pressure != null) sparkData.push(hourly[i].pressure);
+  }
+
+  let sparkSvg = "";
+  if (sparkData.length > 2) {
+    const min = Math.min(...sparkData);
+    const max = Math.max(...sparkData);
+    const range = max - min || 1;
+    const w = 140, h = 32;
+    const points = sparkData.map((v, i) => {
+      const x = (i / (sparkData.length - 1)) * w;
+      const y = h - ((v - min) / range) * h;
+      return `${x},${y}`;
+    }).join(" ");
+    sparkSvg = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="pressure-spark">
+      <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+    </svg>`;
+  }
+
+  container.innerHTML = `
+    <div class="pressure-value">${Math.round(currentPressure)} <span>hPa</span></div>
+    <div class="pressure-trend ${trendCls}">${trendArrow} ${trendLabel}</div>
+    ${sparkSvg}
+  `;
+}
+
+/* ── AQI Breakdown Panel ─────────────────────────── */
+
+function renderAqiBreakdown(aqiData, overallAqi) {
+  const container = document.getElementById("aqiBreakdown");
+  if (!container) return;
+  if (!aqiData) { container.innerHTML = ""; return; }
+
+  const pollutants = [
+    { key: "pm2_5", label: "PM2.5", max: 75, unit: "µg/m³" },
+    { key: "pm10", label: "PM10", max: 150, unit: "µg/m³" },
+    { key: "nitrogen_dioxide", label: "NO₂", max: 200, unit: "µg/m³" },
+    { key: "ozone", label: "O₃", max: 180, unit: "µg/m³" },
+    { key: "sulphur_dioxide", label: "SO₂", max: 350, unit: "µg/m³" },
+    { key: "carbon_monoxide", label: "CO", max: 15000, unit: "µg/m³" },
+  ];
+
+  let barsHtml = "";
+  let hasData = false;
+  pollutants.forEach(p => {
+    const val = aqiData[p.key];
+    if (val == null) return;
+    hasData = true;
+    const pct = Math.min((val / p.max) * 100, 100);
+    let color = "#22c55e";
+    if (pct > 75) color = "#ef4444";
+    else if (pct > 50) color = "#f97316";
+    else if (pct > 25) color = "#eab308";
+    barsHtml += `
+      <div class="aqi-bar-row">
+        <span class="aqi-bar-label">${p.label}</span>
+        <div class="aqi-bar-track">
+          <div class="aqi-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <span class="aqi-bar-val">${Math.round(val)}</span>
+      </div>`;
+  });
+
+  if (!hasData) { container.innerHTML = ""; return; }
+
+  let healthText = "";
+  if (overallAqi != null) {
+    if (overallAqi <= 50) healthText = "Air quality is satisfactory. No health risk.";
+    else if (overallAqi <= 100) healthText = "Moderate. Acceptable for most people.";
+    else if (overallAqi <= 150) healthText = "Unhealthy for sensitive groups. Limit outdoor exertion.";
+    else if (overallAqi <= 200) healthText = "Unhealthy. Everyone may experience effects.";
+    else healthText = "Very unhealthy. Avoid outdoor activities.";
+  }
+
+  container.innerHTML = `
+    <div class="aqi-breakdown-header">Air Quality Breakdown</div>
+    ${barsHtml}
+    ${healthText ? `<div class="aqi-health-text">${healthText}</div>` : ""}
+  `;
+}
+
+/* ── AQI 24h Trend Strip ─────────────────────────── */
+
+function renderAqiTrend(aqiHourly, today, nowHour) {
+  const container = document.getElementById("aqiTrend");
+  if (!container) return;
+  if (!aqiHourly || aqiHourly.length === 0) { container.innerHTML = ""; return; }
+
+  const startIdx = aqiHourly.findIndex(h => {
+    const hDate = h.time.slice(0, 10);
+    const hHour = parseInt(h.time.slice(11, 13), 10);
+    return hDate === today && hHour >= nowHour;
+  });
+  if (startIdx === -1) { container.innerHTML = ""; return; }
+
+  const hours = aqiHourly.slice(startIdx, startIdx + 24);
+  if (hours.length < 4) { container.innerHTML = ""; return; }
+
+  function aqiColor(val) {
+    if (val == null) return "rgba(255,255,255,0.06)";
+    if (val <= 50) return "#22c55e";
+    if (val <= 100) return "#eab308";
+    if (val <= 150) return "#f97316";
+    if (val <= 200) return "#ef4444";
+    return "#a855f7";
+  }
+
+  const segments = hours.map(h =>
+    `<div class="aqi-trend-seg" style="background:${aqiColor(h.usAqi)}" title="AQI ${h.usAqi ?? '--'}"></div>`
+  ).join("");
+
+  container.innerHTML = `
+    <div class="aqi-trend-header">24h AQI Trend</div>
+    <div class="aqi-trend-strip">${segments}</div>
+    <div class="aqi-trend-labels"><span>Now</span><span>+12h</span><span>+24h</span></div>
+  `;
 }
 
 /* ── Chart Overlay ─────────────────────────────────── */
@@ -1713,6 +2339,11 @@ function setupNav() {
     if (e.target === e.currentTarget) hideDeleteConfirm();
   });
 
+  // Map mode buttons
+  document.querySelectorAll(".map-mode-btn").forEach(btn => {
+    btn.addEventListener("click", () => setMapMode(btn.dataset.mode));
+  });
+
   // Chart filter buttons — date range
   document.querySelectorAll(".chart-filter-btn[data-range]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1738,14 +2369,22 @@ async function refreshCurrentCity() {
   const city = CITIES[currentCityIdx];
   if (!city) return;
   try {
-    const [historical, forecast, aqi] = await Promise.all([
+    const [historical, forecast, aqi, flood] = await Promise.all([
       fetchHistorical(city),
       fetchForecast(city),
       fetchAirQuality(city).catch(() => null),
+      fetchFloodRisk(city).catch(() => null),
     ]);
     const daily = mergeDailyData(historical, forecast);
     const hourly = extractHourly(forecast);
-    cityDataMap[city.name] = { daily, hourly, aqi: aqi?.current || null };
+    const aqiHourly = aqi ? extractAqiHourly(aqi) : [];
+    cityDataMap[city.name] = {
+      daily, hourly,
+      current: forecast.current || null,
+      aqi: aqi?.current || null,
+      aqiHourly,
+      flood: flood?.daily || null,
+    };
     renderCity(currentCityIdx);
   } catch (err) {
     console.error("Refresh failed:", err);
@@ -1803,17 +2442,25 @@ async function loadAllCities() {
 
   const promises = CITIES.map(async city => {
     try {
-      const [historical, forecast, aqi] = await Promise.all([
+      const [historical, forecast, aqi, flood] = await Promise.all([
         fetchHistorical(city),
         fetchForecast(city),
         fetchAirQuality(city).catch(() => null),
+        fetchFloodRisk(city).catch(() => null),
       ]);
       const daily = mergeDailyData(historical, forecast);
       const hourly = extractHourly(forecast);
-      cityDataMap[city.name] = { daily, hourly, aqi: aqi?.current || null };
+      const aqiHourly = aqi ? extractAqiHourly(aqi) : [];
+      cityDataMap[city.name] = {
+        daily, hourly,
+        current: forecast.current || null,
+        aqi: aqi?.current || null,
+        aqiHourly,
+        flood: flood?.daily || null,
+      };
     } catch (err) {
       console.error(`Error loading ${city.name}:`, err);
-      cityDataMap[city.name] = { daily: [], hourly: [], aqi: null };
+      cityDataMap[city.name] = { daily: [], hourly: [], current: null, aqi: null, aqiHourly: [], flood: null };
     } finally {
       loaded++;
       loadingBar.style.width = Math.round((loaded / total) * 100) + "%";

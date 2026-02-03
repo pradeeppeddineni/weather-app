@@ -946,6 +946,201 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 }
 .chart-container canvas { width:100%!important; height:100%!important }
 
+/* ══════════════════════════════════════════════════════
+   MAP MODE BAR & OVERLAYS
+   ══════════════════════════════════════════════════════ */
+.map-mode-bar {
+  display:flex; gap:6px; padding:0 1.5rem .4rem;
+  flex-shrink:0;
+}
+.map-mode-btn {
+  flex:1; padding:6px 4px;
+  font-size:.7rem; font-weight:600; font-family:var(--font-heading);
+  letter-spacing:.02em; color:var(--text-muted);
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; transition:all .2s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.map-mode-btn:hover { background:rgba(255,255,255,0.07); color:var(--text-secondary) }
+.map-mode-btn.active {
+  background:rgba(78,168,245,0.15); border-color:rgba(78,168,245,0.3);
+  color:var(--accent);
+}
+
+.map-legend {
+  padding:0 1.5rem .5rem; flex-shrink:0;
+}
+.map-legend-bar {
+  height:6px; border-radius:3px; width:100%;
+}
+.map-legend-labels {
+  display:flex; justify-content:space-between;
+  font-size:.65rem; color:var(--text-muted); font-family:var(--font-heading);
+  margin-top:3px;
+}
+
+/* ══════════════════════════════════════════════════════
+   YESTERDAY COMPARISON
+   ══════════════════════════════════════════════════════ */
+.yesterday-comp {
+  font-size:.75rem; font-weight:500; font-family:var(--font-heading);
+  text-align:center; margin-top:.25rem;
+  position:relative; z-index:2;
+  animation:fadeUp .5s ease-out .12s both;
+}
+.yesterday-warmer { color:var(--max-color) }
+.yesterday-cooler { color:var(--min-color) }
+
+/* ══════════════════════════════════════════════════════
+   COMFORT CHIP
+   ══════════════════════════════════════════════════════ */
+.comfort-chip {
+  display:inline-block;
+  font-size:.65rem; font-weight:700; font-family:var(--font-heading);
+  padding:3px 10px; border-radius:6px; letter-spacing:.02em;
+  margin-top:.35rem; position:relative; z-index:2;
+  animation:fadeUp .5s ease-out .38s both;
+}
+.comfort-ok { background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.25) }
+.comfort-warm { background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.25) }
+.comfort-hot { background:rgba(249,115,22,0.15); color:#f97316; border:1px solid rgba(249,115,22,0.25) }
+.comfort-oppressive { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.25) }
+
+/* ══════════════════════════════════════════════════════
+   WIND COMPASS
+   ══════════════════════════════════════════════════════ */
+.wind-compass {
+  display:flex; justify-content:center; margin-top:1.25rem;
+  position:relative; z-index:2;
+  animation:fadeUp .5s ease-out .42s both;
+}
+.wind-compass:empty { display:none }
+.wind-compass svg { filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3)) }
+
+/* ══════════════════════════════════════════════════════
+   PRESSURE CARD
+   ══════════════════════════════════════════════════════ */
+.pressure-card {
+  margin-top:1rem; padding:.85rem 1rem;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-sm); text-align:center;
+  position:relative; z-index:2;
+  animation:fadeUp .5s ease-out .44s both;
+}
+.pressure-card:empty { display:none }
+.pressure-value {
+  font-family:var(--font-heading); font-weight:700; font-size:1.5rem;
+  letter-spacing:-.02em;
+}
+.pressure-value span { font-size:.8rem; font-weight:400; color:var(--text-muted) }
+.pressure-trend {
+  font-size:.75rem; font-weight:600; font-family:var(--font-heading);
+  margin-top:.15rem;
+}
+.trend-rising { color:#22c55e }
+.trend-falling { color:#ef4444 }
+.trend-steady { color:var(--text-muted) }
+.pressure-spark {
+  display:block; margin:.5rem auto 0; opacity:.7;
+}
+
+/* ══════════════════════════════════════════════════════
+   STORM / DUST / FLOOD CHIPS
+   ══════════════════════════════════════════════════════ */
+.storm-chip, .dust-chip, .flood-chip {
+  font-size:.65rem; font-weight:700; font-family:var(--font-heading);
+  padding:3px 8px; border-radius:6px; letter-spacing:.02em;
+}
+.storm-moderate { background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.25) }
+.storm-high { background:rgba(249,115,22,0.15); color:#f97316; border:1px solid rgba(249,115,22,0.25) }
+.storm-severe { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.25) }
+
+.dust-alert { background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.25) }
+.dust-severe { background:rgba(249,115,22,0.15); color:#f97316; border:1px solid rgba(249,115,22,0.25) }
+
+.flood-watch { background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.25) }
+.flood-risk { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.25) }
+
+/* Daylight duration in sun-times */
+.daylight-dur {
+  font-size:.7rem; font-weight:500; color:var(--text-muted);
+  font-family:var(--font-heading);
+}
+
+/* ══════════════════════════════════════════════════════
+   AQI BREAKDOWN PANEL
+   ══════════════════════════════════════════════════════ */
+.aqi-breakdown {
+  margin-top:1rem; padding:.85rem 1rem;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-sm); text-align:left;
+  position:relative; z-index:2;
+  animation:fadeUp .5s ease-out .46s both;
+}
+.aqi-breakdown:empty { display:none }
+.aqi-breakdown-header {
+  font-family:var(--font-heading); font-weight:600; font-size:.8rem;
+  color:var(--text-secondary); margin-bottom:.6rem;
+}
+.aqi-bar-row {
+  display:flex; align-items:center; gap:.5rem; margin-bottom:.4rem;
+}
+.aqi-bar-label {
+  font-size:.7rem; font-weight:500; color:var(--text-muted);
+  font-family:var(--font-heading); width:36px; flex-shrink:0;
+}
+.aqi-bar-track {
+  flex:1; height:5px; background:rgba(255,255,255,0.06);
+  border-radius:3px; overflow:hidden;
+}
+.aqi-bar-fill {
+  height:100%; border-radius:3px; transition:width .4s ease;
+}
+.aqi-bar-val {
+  font-size:.65rem; font-weight:600; color:var(--text-muted);
+  font-family:var(--font-heading); width:30px; text-align:right; flex-shrink:0;
+}
+.aqi-health-text {
+  font-size:.72rem; color:var(--text-muted); margin-top:.5rem;
+  line-height:1.4;
+}
+
+/* ══════════════════════════════════════════════════════
+   AQI 24h TREND STRIP
+   ══════════════════════════════════════════════════════ */
+.aqi-trend {
+  margin-top:.75rem; text-align:left;
+  position:relative; z-index:2;
+  animation:fadeUp .5s ease-out .48s both;
+}
+.aqi-trend:empty { display:none }
+.aqi-trend-header {
+  font-family:var(--font-heading); font-weight:600; font-size:.8rem;
+  color:var(--text-secondary); margin-bottom:.4rem;
+}
+.aqi-trend-strip {
+  display:flex; gap:1px; border-radius:4px; overflow:hidden;
+  height:14px;
+}
+.aqi-trend-seg { flex:1; min-width:0 }
+.aqi-trend-labels {
+  display:flex; justify-content:space-between;
+  font-size:.6rem; color:var(--text-muted); font-family:var(--font-heading);
+  margin-top:2px;
+}
+
+/* ══════════════════════════════════════════════════════
+   HOURLY CLOUD COVER & DAILY RAIN DURATION
+   ══════════════════════════════════════════════════════ */
+.hourly-cloud {
+  font-size:.55rem; color:var(--text-muted); opacity:.7;
+  font-family:var(--font-heading);
+}
+.daily-rain-dur {
+  font-size:.6rem; font-weight:500; color:var(--min-color);
+  font-family:var(--font-heading); opacity:.7;
+}
+
 /* ── Scrollbar ─────────────────────────────────────── */
 ::-webkit-scrollbar { width:0; height:0 }
 
