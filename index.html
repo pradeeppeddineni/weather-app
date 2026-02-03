@@ -19,7 +19,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 
@@ -272,13 +272,13 @@
     </div>
   </div>
 
-  <script src="cities.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="cities.js?v=8"></script>
+  <script src="app.js?v=8"></script>
   <script>
     // Force clear old service worker caches
     if ('caches' in window) {
       caches.keys().then(names => names.forEach(n => {
-        if (n !== 'temptrack-v7') caches.delete(n);
+        if (n !== 'temptrack-v8') caches.delete(n);
       }));
     }
   </script>
