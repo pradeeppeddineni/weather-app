@@ -365,6 +365,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-sm);
+  flex-shrink: 0;
 }
 .city-card-delete-bg {
   position: absolute;
@@ -394,7 +395,6 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   position: relative;
   z-index: 1;
   transition: background .2s, border-color .2s, transform .25s cubic-bezier(.4,0,.2,1);
-  -webkit-transform: translateZ(0);
 }
 .city-card-wrapper.swiped .city-card {
   transform: translateX(-80px);
