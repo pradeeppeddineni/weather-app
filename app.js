@@ -991,6 +991,104 @@ function getCityCurrentData(city) {
   };
 }
 
+/* Weather-condition gradient backgrounds for city cards */
+const CARD_GRADIENTS = {
+  sun:          "linear-gradient(135deg, #4a9bd9 0%, #f0a030 50%, #e8823a 100%)",
+  "cloud-sun":  "linear-gradient(135deg, #5a8db8 0%, #7aa8cc 50%, #c4a050 100%)",
+  cloud:        "linear-gradient(135deg, #5a6f8a 0%, #6b809a 50%, #4a5f78 100%)",
+  fog:          "linear-gradient(135deg, #6a7a8a 0%, #8a96a4 50%, #5a6878 100%)",
+  drizzle:      "linear-gradient(135deg, #4a6888 0%, #5a7898 50%, #3a5a7a 100%)",
+  rain:         "linear-gradient(135deg, #3a5878 0%, #4a6888 50%, #2a4868 100%)",
+  "rain-heavy": "linear-gradient(135deg, #2a3f5a 0%, #3a4f6a 50%, #1a2f4a 100%)",
+  snow:         "linear-gradient(135deg, #6a8aaa 0%, #8aaac4 50%, #5a7a9a 100%)",
+  thunder:      "linear-gradient(135deg, #3a3f5a 0%, #4a4f6a 50%, #2a2f4a 100%)",
+};
+
+/* Generate weather particle HTML for city cards */
+function generateWeatherParticles(icon) {
+  let html = '<div class="city-card-particles">';
+  switch (icon) {
+    case "snow":
+      for (let i = 0; i < 20; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 4;
+        const dur = 2.5 + Math.random() * 2;
+        const size = 2 + Math.random() * 3;
+        html += `<span class="particle-snow" style="left:${left}%;top:-8px;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s;opacity:${0.4 + Math.random() * 0.5}"></span>`;
+      }
+      break;
+    case "rain":
+      for (let i = 0; i < 16; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 2;
+        const dur = 0.8 + Math.random() * 0.6;
+        html += `<span class="particle-rain" style="left:${left}%;top:-16px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "rain-heavy":
+      for (let i = 0; i < 24; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 1.5;
+        const dur = 0.5 + Math.random() * 0.4;
+        html += `<span class="particle-rain-heavy" style="left:${left}%;top:-20px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "drizzle":
+      for (let i = 0; i < 10; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 3;
+        const dur = 1.5 + Math.random() * 1;
+        html += `<span class="particle-drizzle" style="left:${left}%;top:-10px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "sun":
+      for (let i = 0; i < 5; i++) {
+        const left = 60 + Math.random() * 35;
+        const top = Math.random() * 20;
+        const rot = -30 + Math.random() * 60;
+        const delay = Math.random() * 2;
+        html += `<span class="particle-sun" style="left:${left}%;top:${top}px;transform:rotate(${rot}deg);animation-delay:${delay}s"></span>`;
+      }
+      break;
+    case "cloud-sun":
+      for (let i = 0; i < 2; i++) {
+        const top = 15 + Math.random() * 40;
+        const dur = 20 + Math.random() * 15;
+        const delay = Math.random() * 10;
+        html += `<span class="particle-cloud" style="top:${top}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "cloud":
+      for (let i = 0; i < 3; i++) {
+        const top = 10 + Math.random() * 50;
+        const dur = 18 + Math.random() * 12;
+        const delay = Math.random() * 8;
+        const w = 40 + Math.random() * 50;
+        html += `<span class="particle-cloud" style="top:${top}px;width:${w}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "fog":
+      for (let i = 0; i < 4; i++) {
+        const top = 15 + i * 20;
+        const dur = 4 + Math.random() * 3;
+        const delay = Math.random() * 2;
+        html += `<span class="particle-fog" style="top:${top}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "thunder":
+      html += `<span class="particle-thunder" style="animation-delay:${Math.random() * 3}s"></span>`;
+      for (let i = 0; i < 18; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 1.5;
+        const dur = 0.5 + Math.random() * 0.4;
+        html += `<span class="particle-rain-heavy" style="left:${left}%;top:-20px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+  }
+  html += '</div>';
+  return html;
+}
+
 function renderCitiesList(filter) {
   const container = document.getElementById("citiesList");
   const query = (filter != null ? filter : document.getElementById("citySearch").value).trim().toLowerCase();
@@ -1002,12 +1100,6 @@ function renderCitiesList(filter) {
     container.innerHTML = `<div class="cities-empty">No cities match "${query}"</div>`;
     return;
   }
-
-  const CARD_COLORS = {
-    sun: "#fbbf24", "cloud-sun": "#f59e0b", cloud: "#94a3b8",
-    fog: "#94a3b8", drizzle: "#60a5fa", rain: "#3b82f6",
-    "rain-heavy": "#2563eb", snow: "#93c5fd", thunder: "#a78bfa",
-  };
 
   container.innerHTML = "";
   filtered.forEach(({ city, idx }) => {
@@ -1027,14 +1119,15 @@ function renderCitiesList(filter) {
     // Card
     const card = document.createElement("div");
     card.className = "city-card";
-    const accentColor = info ? (CARD_COLORS[info.icon] || "rgba(255,255,255,0.08)") : "rgba(255,255,255,0.08)";
-    card.style.setProperty("--card-accent", accentColor);
+    const iconType = info ? info.icon : "cloud";
+    const gradient = CARD_GRADIENTS[iconType] || CARD_GRADIENTS.cloud;
+    card.style.setProperty("--card-bg", gradient);
 
-    const iconHtml = info ? weatherSVGSmall(info.icon, 36) : weatherSVGSmall("cloud", 36);
+    const iconHtml = info ? weatherSVGSmall(iconType, 32) : weatherSVGSmall("cloud", 32);
     const tempStr = info && info.temp != null ? info.temp + "°" : "--°";
     const desc = info ? info.desc : "Loading...";
     const rangeHtml = info && info.high != null
-      ? `<span class="hi">${info.high}°</span> / <span class="lo">${info.low}°</span>`
+      ? `H:<span class="hi">${info.high}°</span>  L:<span class="lo">${info.low}°</span>`
       : "--";
 
     const precipChip = info && info.precipProb > 0
@@ -1042,13 +1135,14 @@ function renderCitiesList(filter) {
       : "";
 
     card.innerHTML = `
+      ${generateWeatherParticles(iconType)}
       <div class="city-card-icon">${iconHtml}</div>
-      <div class="city-card-info">
+      <div class="city-card-left">
         <div class="city-card-name">${city.name}</div>
         <div class="city-card-desc">${desc}</div>
+        ${precipChip}
       </div>
-      ${precipChip}
-      <div class="city-card-temps">
+      <div class="city-card-right">
         <div class="city-card-current">${tempStr}</div>
         <div class="city-card-range">${rangeHtml}</div>
       </div>
