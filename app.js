@@ -1089,6 +1089,84 @@ function generateWeatherParticles(icon) {
   return html;
 }
 
+/* Generate full-page weather particles for detail view background */
+function generateDetailParticles(icon) {
+  let html = '';
+  switch (icon) {
+    case "snow":
+      for (let i = 0; i < 50; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 8;
+        const dur = 4 + Math.random() * 4;
+        const size = 2 + Math.random() * 4;
+        html += `<span class="particle-snow" style="left:${left}%;top:-10px;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s;opacity:${0.3 + Math.random() * 0.5}"></span>`;
+      }
+      break;
+    case "rain":
+      for (let i = 0; i < 40; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 3;
+        const dur = 0.8 + Math.random() * 0.6;
+        html += `<span class="particle-rain" style="left:${left}%;top:-16px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "rain-heavy":
+      for (let i = 0; i < 60; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 2;
+        const dur = 0.5 + Math.random() * 0.4;
+        html += `<span class="particle-rain-heavy" style="left:${left}%;top:-20px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "drizzle":
+      for (let i = 0; i < 25; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 4;
+        const dur = 1.5 + Math.random() * 1;
+        html += `<span class="particle-drizzle" style="left:${left}%;top:-10px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "sun":
+      for (let i = 0; i < 8; i++) {
+        const left = 50 + Math.random() * 45;
+        const top = Math.random() * 30;
+        const rot = -40 + Math.random() * 80;
+        const delay = Math.random() * 3;
+        html += `<span class="particle-sun" style="left:${left}%;top:${top}%;transform:rotate(${rot}deg);animation-delay:${delay}s;height:80px"></span>`;
+      }
+      break;
+    case "cloud-sun":
+    case "cloud":
+      for (let i = 0; i < 5; i++) {
+        const top = 5 + Math.random() * 60;
+        const dur = 25 + Math.random() * 20;
+        const delay = Math.random() * 15;
+        const w = 60 + Math.random() * 80;
+        html += `<span class="particle-cloud" style="top:${top}%;width:${w}px;height:${w*0.35}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "fog":
+      for (let i = 0; i < 8; i++) {
+        const top = 10 + i * 12;
+        const dur = 5 + Math.random() * 4;
+        const delay = Math.random() * 3;
+        html += `<span class="particle-fog" style="top:${top}%;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+    case "thunder":
+      html += `<span class="particle-thunder" style="animation-delay:${Math.random() * 2}s"></span>`;
+      html += `<span class="particle-thunder" style="animation-delay:${2 + Math.random() * 2}s"></span>`;
+      for (let i = 0; i < 50; i++) {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 2;
+        const dur = 0.5 + Math.random() * 0.4;
+        html += `<span class="particle-rain-heavy" style="left:${left}%;top:-20px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+      }
+      break;
+  }
+  return html;
+}
+
 function renderCitiesList(filter) {
   const container = document.getElementById("citiesList");
   const query = (filter != null ? filter : document.getElementById("citySearch").value).trim().toLowerCase();
@@ -1533,6 +1611,7 @@ function renderNewsFallback(container) {
 
 function backFromDetail() {
   document.getElementById("detailView").classList.remove("visible");
+  document.getElementById("detailBgParticles").innerHTML = "";
   closeChartOverlay();
 
   if (navigatedFrom === "cities") {
@@ -1625,31 +1704,15 @@ function renderCity(idx) {
 
   const weatherInfo = getWeatherInfo(currentCode);
 
-  // Weather icon
-  const iconWrap = document.getElementById("weatherIconWrap");
-  iconWrap.innerHTML = weatherSVG(weatherInfo.icon);
-  iconWrap.style.animation = "none";
-  void iconWrap.offsetHeight;
-  iconWrap.style.animation = "heroIn 0.6s ease-out";
-
-  // Icon drop shadow
-  const svgEl = iconWrap.querySelector("svg");
-  if (svgEl) {
-    const isWarmIcon = ["sun", "cloud-sun"].includes(weatherInfo.icon);
-    svgEl.style.filter = isWarmIcon
-      ? "drop-shadow(0 8px 32px rgba(249, 150, 80, 0.35))"
-      : "drop-shadow(0 8px 32px rgba(96, 165, 250, 0.25))";
-  }
-
   // Temperature
   document.getElementById("tempValue").textContent = currentTemp;
 
   // Description
   const descEl = document.getElementById("weatherDesc");
   const todayMaxMin = todayDaily
-    ? `High ${Math.round(todayDaily.max)}° / Low ${Math.round(todayDaily.min)}°`
+    ? `H:${Math.round(todayDaily.max)}°  L:${Math.round(todayDaily.min)}°`
     : "";
-  descEl.textContent = weatherInfo.desc + (todayMaxMin ? ". " + todayMaxMin : "");
+  descEl.textContent = weatherInfo.desc + (todayMaxMin ? "  ·  " + todayMaxMin : "");
 
   // Feels-like + Dew point + Comfort
   const feelsLikeEl = document.getElementById("feelsLike");
@@ -1705,70 +1768,167 @@ function renderCity(idx) {
     }
   }
 
-  // Precipitation probability
-  let precipProbStr = "--";
-  if (nearestHourly?.precipProb != null) {
-    precipProbStr = nearestHourly.precipProb + "%";
-  } else if (todayDaily?.precipProb != null) {
-    precipProbStr = todayDaily.precipProb + "%";
-  }
+  // (Stats are now rendered inside glass cards above)
 
-  // Visibility
-  let visStr = "--";
-  if (currentVisibility != null) {
-    visStr = (currentVisibility / 1000).toFixed(1) + "km";
-  }
+  // Weather-condition background gradient + particles
+  const DETAIL_BG_GRADIENTS = {
+    sun:          "linear-gradient(180deg, #4a8ec4 0%, #3a6e9a 30%, #1a3a5a 70%, #0d1a2a 100%)",
+    "cloud-sun":  "linear-gradient(180deg, #5a8aaa 0%, #4a6a88 30%, #1a3050 70%, #0d1a2a 100%)",
+    cloud:        "linear-gradient(180deg, #4a5a6e 0%, #3a4a5e 30%, #1a2838 70%, #0d1520 100%)",
+    fog:          "linear-gradient(180deg, #5a6878 0%, #4a5868 30%, #1a2838 70%, #0d1520 100%)",
+    drizzle:      "linear-gradient(180deg, #3a5878 0%, #2a4868 30%, #142838 70%, #0a1520 100%)",
+    rain:         "linear-gradient(180deg, #2a4a6a 0%, #1a3a5a 30%, #0f2238 70%, #08121e 100%)",
+    "rain-heavy": "linear-gradient(180deg, #1a2a40 0%, #142234 30%, #0a1520 70%, #060e18 100%)",
+    snow:         "linear-gradient(180deg, #6888a8 0%, #5878a0 30%, #2a4060 70%, #1a2a3a 100%)",
+    thunder:      "linear-gradient(180deg, #2a2a40 0%, #1a1a30 30%, #0e0e1a 70%, #080812 100%)",
+  };
 
-  // Cloud cover
-  let cloudStr = "--";
-  if (currentCloudCover != null) {
-    cloudStr = currentCloudCover + "%";
-  }
-
-  // Stats
-  document.getElementById("windSpeed").textContent = currentWind;
-  document.getElementById("humidity").textContent = currentHumidity;
-  document.getElementById("sunHours").textContent = sunshineHrs;
-  document.getElementById("precipProb").textContent = precipProbStr;
-  const visStat = document.getElementById("visibility");
-  if (visStat) visStat.textContent = visStr;
-  const cloudStat = document.getElementById("cloudCover");
-  if (cloudStat) cloudStat.textContent = cloudStr;
-
-  // Ambient glow
   const detailView = document.getElementById("detailView");
-  const isWarm = currentTemp !== "--" && currentTemp > 28;
-  detailView.style.setProperty(
-    "--warm-glow",
-    isWarm
-      ? "rgba(249, 150, 80, 0.25)"
-      : "rgba(96, 165, 250, 0.15)"
-  );
+  const bgGradient = DETAIL_BG_GRADIENTS[weatherInfo.icon] || DETAIL_BG_GRADIENTS.cloud;
+  detailView.style.setProperty("--detail-bg", bgGradient);
 
-  // Sunrise / Sunset / UV / Daylight
-  document.getElementById("sunriseTime").textContent = formatTimeIST(todayDaily?.sunrise);
-  document.getElementById("sunsetTime").textContent = formatTimeIST(todayDaily?.sunset);
+  // Full-page weather particles
+  const bgParticles = document.getElementById("detailBgParticles");
+  bgParticles.innerHTML = generateDetailParticles(weatherInfo.icon);
 
-  const daylightEl = document.getElementById("daylightDuration");
-  if (daylightEl && todayDaily?.daylightDuration != null) {
-    daylightEl.textContent = (todayDaily.daylightDuration / 3600).toFixed(1) + "hr daylight";
-    daylightEl.style.display = "";
-  } else if (daylightEl) {
-    daylightEl.style.display = "none";
+  // ── Populate Glass Cards ──
+
+  // Sunrise / Sunset card
+  const sunriseStr = formatTimeIST(todayDaily?.sunrise);
+  const sunsetStr = formatTimeIST(todayDaily?.sunset);
+  const daylightHrs = todayDaily?.daylightDuration != null
+    ? (todayDaily.daylightDuration / 3600).toFixed(1) + "hr daylight"
+    : "";
+  const sunsetBody = document.getElementById("sunsetBody");
+  if (sunsetBody) {
+    sunsetBody.innerHTML = `
+      <div class="glass-info-value">${sunsetStr}</div>
+      <div class="glass-info-subtitle">Sunrise: ${sunriseStr}</div>
+      ${daylightHrs ? `<div class="glass-info-desc">${daylightHrs}</div>` : ""}
+    `;
   }
 
+  // UV Index card
   const uvInfo = getUVLevel(todayDaily?.uvIndex);
-  const uvChip = document.getElementById("uvChip");
-  uvChip.textContent = uvInfo.label;
-  uvChip.className = "uv-chip" + (uvInfo.cls ? " " + uvInfo.cls : "");
+  const uvVal = todayDaily?.uvIndex != null ? Math.round(todayDaily.uvIndex) : "--";
+  const uvBody = document.getElementById("uvBody");
+  if (uvBody) {
+    const uvPct = todayDaily?.uvIndex != null ? Math.min(todayDaily.uvIndex / 11 * 100, 100) : 0;
+    const uvLabel = uvVal <= 2 ? "Low" : uvVal <= 5 ? "Moderate" : uvVal <= 7 ? "High" : uvVal <= 10 ? "Very High" : "Extreme";
+    uvBody.innerHTML = `
+      <div class="glass-info-value">${uvVal}</div>
+      <div class="glass-info-subtitle">${uvLabel}</div>
+      <div class="uv-color-bar"><div class="uv-color-dot" style="left:${uvPct}%"></div></div>
+    `;
+  }
 
-  // AQI chip
+  // Feels Like card
+  const feelsLikeBody = document.getElementById("feelsLikeBody");
+  if (feelsLikeBody) {
+    const flVal = currentFeelsLike != null ? Math.round(currentFeelsLike) + "°" : "--°";
+    const flDesc = currentFeelsLike != null && currentTemp !== "--"
+      ? (Math.round(currentFeelsLike) < currentTemp ? "Wind is making it feel cooler." : Math.round(currentFeelsLike) > currentTemp ? "Humidity is making it feel warmer." : "Similar to the actual temperature.")
+      : "";
+    feelsLikeBody.innerHTML = `
+      <div class="glass-info-value">${flVal}</div>
+      <div class="glass-info-subtitle">Actual: ${currentTemp}°</div>
+      ${flDesc ? `<div class="glass-info-desc">${flDesc}</div>` : ""}
+    `;
+  }
+
+  // Humidity card
+  const humidityBody = document.getElementById("humidityBody");
+  if (humidityBody) {
+    const humVal = cur?.relative_humidity_2m ?? nearestHourly?.humidity ?? null;
+    const dewVal = currentDewPoint != null ? Math.round(currentDewPoint) + "°" : "--°";
+    humidityBody.innerHTML = `
+      <div class="glass-info-value">${humVal != null ? humVal + "%" : "--%"}</div>
+      <div class="glass-info-subtitle">Dew point: ${dewVal}</div>
+    `;
+  }
+
+  // Visibility card
+  const visibilityBody = document.getElementById("visibilityBody");
+  if (visibilityBody) {
+    let visVal = "--";
+    let visDesc = "";
+    if (currentVisibility != null) {
+      const km = currentVisibility / 1000;
+      visVal = km.toFixed(1) + " km";
+      if (km >= 10) visDesc = "Perfectly clear view.";
+      else if (km >= 5) visDesc = "Good visibility.";
+      else if (km >= 2) visDesc = "Moderate visibility.";
+      else visDesc = "Poor visibility.";
+    }
+    visibilityBody.innerHTML = `
+      <div class="glass-info-value">${visVal}</div>
+      ${visDesc ? `<div class="glass-info-desc">${visDesc}</div>` : ""}
+    `;
+  }
+
+  // Precipitation card
+  const precipBody = document.getElementById("precipBody");
+  if (precipBody) {
+    let precipProbVal = "--";
+    if (nearestHourly?.precipProb != null) precipProbVal = nearestHourly.precipProb + "%";
+    else if (todayDaily?.precipProb != null) precipProbVal = todayDaily.precipProb + "%";
+    const todayPrecip = todayDaily?.precip != null ? todayDaily.precip.toFixed(1) + "mm" : "0mm";
+    precipBody.innerHTML = `
+      <div class="glass-info-value">${precipProbVal}</div>
+      <div class="glass-info-subtitle">${todayPrecip} today</div>
+    `;
+  }
+
+  // Wind card stats
+  const windStats = document.getElementById("windCardStats");
+  if (windStats) {
+    const windSpd = cur?.wind_speed_10m ?? nearestHourly?.wind;
+    const windDirStr = currentWindDir != null ? degreesToCompass(currentWindDir) : "--";
+    const gustsVal = currentGusts != null ? Math.round(currentGusts) + " km/h" : "--";
+    windStats.innerHTML = `
+      <div class="wind-stat-row"><span class="wind-stat-label">Wind</span><span class="wind-stat-val">${windSpd != null ? Math.round(windSpd) + " km/h" : "--"}</span></div>
+      <div class="wind-stat-row"><span class="wind-stat-label">Gusts</span><span class="wind-stat-val">${gustsVal}</span></div>
+      <div class="wind-stat-row"><span class="wind-stat-label">Direction</span><span class="wind-stat-val">${currentWindDir != null ? Math.round(currentWindDir) + "° " + windDirStr : "--"}</span></div>
+    `;
+  }
+
+  // AQI card body
   const aqiData = data.aqi;
   const aqiVal = aqiData?.us_aqi ?? aqiData?.european_aqi ?? null;
   const aqiInfo = getAQILevel(aqiVal);
+  const aqiBody = document.getElementById("aqiBody");
+  if (aqiBody) {
+    const aqiLabel = aqiVal != null
+      ? (aqiVal <= 50 ? "Good" : aqiVal <= 100 ? "Moderate" : aqiVal <= 150 ? "Unhealthy for Sensitive" : aqiVal <= 200 ? "Unhealthy" : "Very Unhealthy")
+      : "--";
+    const aqiPct = aqiVal != null ? Math.min(aqiVal / 300 * 100, 100) : 0;
+    let aqiDesc = "";
+    if (aqiVal != null) {
+      if (aqiVal <= 50) aqiDesc = "Air quality is satisfactory.";
+      else if (aqiVal <= 100) aqiDesc = "Acceptable for most people.";
+      else if (aqiVal <= 150) aqiDesc = "Sensitive groups should limit outdoor exertion.";
+      else if (aqiVal <= 200) aqiDesc = "Everyone may experience health effects.";
+      else aqiDesc = "Health alert: avoid outdoor activities.";
+    }
+    aqiBody.innerHTML = `
+      <div class="glass-info-value">${aqiVal ?? "--"}</div>
+      <div class="glass-info-subtitle">${aqiLabel}</div>
+      <div class="aqi-gradient-bar"><div class="aqi-gradient-dot" style="left:${aqiPct}%"></div></div>
+      ${aqiDesc ? `<div class="glass-info-desc">${aqiDesc}</div>` : ""}
+    `;
+  }
+
+  // Show/hide glass cards based on data availability
+  const aqiCardEl = document.getElementById("aqiCard");
+  if (aqiCardEl) aqiCardEl.style.display = aqiVal != null ? "" : "none";
+  const pressureWrap = document.getElementById("pressureCardWrap");
+  if (pressureWrap) pressureWrap.style.display = currentPressure != null ? "" : "none";
+
+  // Legacy hidden elements (used by other parts of code)
   const aqiChip = document.getElementById("aqiChip");
-  aqiChip.textContent = aqiInfo.label;
-  aqiChip.className = "aqi-chip" + (aqiInfo.cls ? " " + aqiInfo.cls : "");
+  if (aqiChip) { aqiChip.textContent = aqiInfo.label; }
+  const uvChip = document.getElementById("uvChip");
+  if (uvChip) { uvChip.textContent = uvInfo.label; }
 
   // Storm risk chip (CAPE-based)
   const stormChip = document.getElementById("stormChip");
@@ -1835,11 +1995,8 @@ function renderCity(idx) {
   // Pressure card
   renderPressureCard(currentPressure, hourly, today, nowHour);
 
-  // AQI breakdown panel
-  renderAqiBreakdown(aqiData, aqiVal);
-
-  // AQI hourly trend
-  renderAqiTrend(data.aqiHourly, today, nowHour);
+  // AQI breakdown and trend are now shown inside the glass AQI card
+  // (rendered above in aqiBody)
 
   // Hourly forecast
   renderHourly(hourly, today, nowHour);

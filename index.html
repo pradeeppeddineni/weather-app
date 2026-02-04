@@ -161,6 +161,7 @@
 
   <!-- ═══ DETAIL VIEW (city weather) ═══ -->
   <div class="detail-view" id="detailView">
+    <div class="detail-bg-particles" id="detailBgParticles"></div>
     <div class="pull-refresh" id="pullRefresh">
       <div class="pull-refresh-spinner"></div>
     </div>
@@ -179,114 +180,163 @@
     </div>
 
     <h1 class="city-name" id="cityName">Mumbai, <span>India</span></h1>
-    <p class="yesterday-comp" id="yesterdayComp" style="display:none"></p>
-    <p class="detail-date" id="detailDate"></p>
-
-    <div class="weather-hero">
-      <div class="weather-icon-wrap" id="weatherIconWrap"></div>
-    </div>
 
     <div class="temp-display">
       <span class="temp-value" id="tempValue">--</span>
       <span class="temp-degree">°</span>
-      <span class="temp-unit">c</span>
     </div>
 
     <p class="weather-desc" id="weatherDesc">Loading...</p>
     <p class="feels-like" id="feelsLike"></p>
+    <p class="yesterday-comp" id="yesterdayComp" style="display:none"></p>
     <div class="comfort-chip" id="comfortChip" style="display:none"></div>
+    <p class="detail-date" id="detailDate"></p>
 
-    <div class="stats-row">
-      <div class="stat">
-        <svg class="stat-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+    <!-- Hourly Forecast Glass Card -->
+    <div class="glass-card glass-card--full">
+      <div class="glass-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
         </svg>
-        <span id="windSpeed">--</span>
+        <span>HOURLY FORECAST</span>
       </div>
-      <div class="stat">
-        <svg class="stat-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+      <div class="hourly-scroll" id="hourlyScroll"></div>
+    </div>
+
+    <!-- 16-Day Forecast Glass Card -->
+    <div class="glass-card glass-card--full">
+      <div class="glass-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
-        <span id="humidity">--</span>
+        <span>16-DAY FORECAST</span>
       </div>
-      <div class="stat">
-        <svg class="stat-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="5"/>
-          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-        <span id="sunHours">--</span>
+      <div class="daily-list" id="dailyList"></div>
+    </div>
+
+    <!-- 2-Column Info Grid -->
+    <div class="info-grid" id="infoGrid">
+      <div class="glass-card" id="feelsLikeCard">
+        <div class="glass-card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+          </svg>
+          <span>FEELS LIKE</span>
+        </div>
+        <div class="glass-card-body" id="feelsLikeBody"></div>
       </div>
-      <div class="stat">
-        <svg class="stat-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-          <path d="M12 13v4" stroke-linecap="round" opacity="0.5"/>
-        </svg>
-        <span id="precipProb">--</span>
+      <div class="glass-card" id="uvCard">
+        <div class="glass-card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <span>UV INDEX</span>
+        </div>
+        <div class="glass-card-body" id="uvBody"></div>
       </div>
-      <div class="stat">
-        <svg class="stat-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-        <span id="visibility">--</span>
+      <div class="glass-card" id="sunsetCard">
+        <div class="glass-card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" opacity="0.6">
+            <path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="13" x2="12" y2="20"/>
+            <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/>
+            <line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
+          </svg>
+          <span>SUNSET</span>
+        </div>
+        <div class="glass-card-body" id="sunsetBody"></div>
       </div>
-      <div class="stat">
-        <svg class="stat-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        </svg>
-        <span id="cloudCover">--</span>
+      <div class="glass-card" id="humidityCard">
+        <div class="glass-card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
+          <span>HUMIDITY</span>
+        </div>
+        <div class="glass-card-body" id="humidityBody"></div>
+      </div>
+      <div class="glass-card" id="visibilityCard">
+        <div class="glass-card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>VISIBILITY</span>
+        </div>
+        <div class="glass-card-body" id="visibilityBody"></div>
+      </div>
+      <div class="glass-card" id="precipCard">
+        <div class="glass-card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+            <path d="M12 13v4" stroke-linecap="round" opacity="0.5"/>
+          </svg>
+          <span>PRECIPITATION</span>
+        </div>
+        <div class="glass-card-body" id="precipBody"></div>
       </div>
     </div>
 
-    <div class="wind-compass" id="windCompass"></div>
-    <div class="pressure-card" id="pressureCard"></div>
+    <!-- Wind Card (full width) -->
+    <div class="glass-card glass-card--full" id="windCard">
+      <div class="glass-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+          <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+        </svg>
+        <span>WIND</span>
+      </div>
+      <div class="glass-card-body wind-card-body">
+        <div class="wind-card-stats" id="windCardStats"></div>
+        <div class="wind-compass" id="windCompass"></div>
+      </div>
+    </div>
 
-    <div class="sun-times" id="sunTimes">
-      <div class="sun-time-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round">
-          <path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/>
-          <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/>
-          <line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
+    <!-- AQI Card (full width) -->
+    <div class="glass-card glass-card--full" id="aqiCard">
+      <div class="glass-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
         </svg>
-        <span id="sunriseTime">--</span>
+        <span>AIR QUALITY</span>
       </div>
-      <div class="sun-time-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97066" stroke-width="2" stroke-linecap="round">
-          <path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="13" x2="12" y2="20"/>
-          <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/>
-          <line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
+      <div class="glass-card-body" id="aqiBody"></div>
+    </div>
+
+    <!-- Pressure Card (full width) -->
+    <div class="glass-card glass-card--full" id="pressureCardWrap">
+      <div class="glass-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
         </svg>
-        <span id="sunsetTime">--</span>
+        <span>PRESSURE</span>
       </div>
-      <span class="daylight-dur" id="daylightDuration" style="display:none"></span>
-      <div class="uv-chip" id="uvChip">UV --</div>
-      <div class="aqi-chip" id="aqiChip">AQI --</div>
+      <div class="glass-card-body" id="pressureCard"></div>
+    </div>
+
+    <!-- Alert chips row -->
+    <div class="alert-chips" id="alertChips">
       <div class="storm-chip" id="stormChip" style="display:none"></div>
       <div class="dust-chip" id="dustChip" style="display:none"></div>
       <div class="flood-chip" id="floodChip" style="display:none"></div>
     </div>
 
-    <div class="aqi-breakdown" id="aqiBreakdown"></div>
-    <div class="aqi-trend" id="aqiTrend"></div>
-
-    <div class="section-header">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
-      <span>Hourly Forecast</span>
-    </div>
-    <div class="hourly-scroll" id="hourlyScroll"></div>
-
-    <div class="section-header section-header--daily">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
-      <span>16-Day Forecast</span>
-    </div>
-    <div class="daily-list" id="dailyList"></div>
+    <!-- Hidden elements for data storage -->
+    <span id="sunriseTime" style="display:none">--</span>
+    <span id="sunsetTime" style="display:none">--</span>
+    <span id="daylightDuration" style="display:none"></span>
+    <span id="uvChip" style="display:none">UV --</span>
+    <span id="aqiChip" style="display:none">AQI --</span>
+    <span id="windSpeed" style="display:none">--</span>
+    <span id="humidity" style="display:none">--</span>
+    <span id="sunHours" style="display:none">--</span>
+    <span id="precipProb" style="display:none">--</span>
+    <span id="visibility" style="display:none">--</span>
+    <span id="cloudCover" style="display:none">--</span>
+    <div id="aqiBreakdown" style="display:none"></div>
+    <div id="aqiTrend" style="display:none"></div>
   </div>
 
   <!-- ═══ CHART OVERLAY ═══ -->
