@@ -1410,6 +1410,7 @@ function removeCity(idx) {
   }
   renderCitiesList();
   renderMap();
+  renderSummary();
 }
 
 /* ── Add City Feature ─────────────────────────────── */
@@ -1539,6 +1540,7 @@ async function addNewCity(geoResult) {
   renderMap();
   closeAddCityModal();
   renderCitiesList();
+  renderSummary();
 }
 
 function openCityFromList(idx) {
