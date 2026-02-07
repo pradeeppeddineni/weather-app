@@ -30,7 +30,7 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 
@@ -143,6 +143,11 @@
     </div>
   </div>
 
+  <!-- Tab 4: Summary -->
+  <div class="tab-content" id="tabSummary">
+    <div class="summary-view" id="summaryView"></div>
+  </div>
+
   <!-- ═══ BOTTOM TAB BAR ═══ -->
   <div class="tab-bar" id="tabBar">
     <button class="tab-bar-btn active" data-tab="tabHome">
@@ -167,6 +172,15 @@
         <line x1="7" y1="16" x2="11" y2="16"/>
       </svg>
       <span>News</span>
+    </button>
+    <button class="tab-bar-btn" data-tab="tabSummary">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+      </svg>
+      <span>Summary</span>
     </button>
   </div>
 
@@ -399,13 +413,13 @@
     </div>
   </div>
 
-  <script src="cities.js?v=12"></script>
-  <script src="app.js?v=12"></script>
+  <script src="cities.js?v=13"></script>
+  <script src="app.js?v=13"></script>
   <script>
     // Force clear old service worker caches
     if ('caches' in window) {
       caches.keys().then(names => names.forEach(n => {
-        if (n !== 'temptrack-v11') caches.delete(n);
+        if (n !== 'temptrack-v12') caches.delete(n);
       }));
     }
   </script>

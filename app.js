@@ -465,7 +465,7 @@ let cityDataMap = {};
 let currentCityIdx = 0;
 let historyChart = null;
 let isZooming = false;
-let navigatedFrom = "map"; // "map" or "cities"
+let navigatedFrom = "map"; // "map", "cities", or "summary"
 let newsLoaded = false;
 let activeChartRange = "all";
 let activeChartPred = "both";
@@ -505,6 +505,11 @@ function switchTab(tabId) {
     // Re-render cities list when switching to it
     if (tabId === "tabCities") {
       renderCitiesList();
+    }
+
+    // Lazy render summary tab
+    if (tabId === "tabSummary") {
+      renderSummary();
     }
   } catch (e) {
     console.error("switchTab error:", e);
@@ -994,6 +999,31 @@ function getCityCurrentData(city) {
     aqi: aqiVal,
   };
 }
+
+/* ── Zone Classification (Summary Tab) ────────────── */
+
+const ZONE_MAP = {
+  "Amritsar": "north", "Ludhiana": "north", "Bikaner": "north",
+  "Shahjahanpur": "north", "Gonda": "north",
+  "Rajkot": "west", "Nadiad": "west", "Indore": "west", "Kota": "west",
+  "Nagpur": "east", "Begusarai": "east", "Hajipur": "east", "Kolkata": "east",
+  "Lalitpur": "south"
+};
+
+function classifyZone(city) {
+  if (ZONE_MAP[city.name]) return ZONE_MAP[city.name];
+  if (city.lat >= 27) return "north";
+  if (city.lon <= 76) return "west";
+  if (city.lon >= 78) return "east";
+  return "south";
+}
+
+const ZONES = [
+  { key: "north", label: "North", icon: "N", color: "#f97066" },
+  { key: "east",  label: "East",  icon: "E", color: "#60a5fa" },
+  { key: "west",  label: "West",  icon: "W", color: "#4ade80" },
+  { key: "south", label: "South", icon: "S", color: "#c084fc" },
+];
 
 /* Weather-condition gradient backgrounds for city cards */
 const CARD_GRADIENTS = {
@@ -1525,6 +1555,119 @@ function openCityFromList(idx) {
   }
 }
 
+/* ── Summary (Tab 4) ──────────────────────────────── */
+
+function generateTempSparkline(cityName, color) {
+  const data = cityDataMap[cityName];
+  if (!data || !data.hourly || !data.hourly.length) return "";
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 12 * 3600 * 1000);
+  const points = data.hourly.filter(h => {
+    const t = new Date(h.time);
+    return t >= cutoff && t <= now;
+  });
+  if (points.length < 3) return "";
+  const temps = points.map(p => p.temp);
+  const min = Math.min(...temps), max = Math.max(...temps);
+  const range = max - min || 1;
+  const w = 60, h = 20, pad = 2;
+  const coords = temps.map((t, i) => {
+    const x = (i / (temps.length - 1)) * w;
+    const y = pad + ((max - t) / range) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <polyline points="${coords.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function renderSummary() {
+  try {
+    const container = document.getElementById("summaryView");
+    if (!container) return;
+
+    // Group cities by zone
+    const groups = { north: [], east: [], west: [], south: [] };
+    CITIES.forEach((city, idx) => {
+      const zone = classifyZone(city);
+      groups[zone].push({ city, idx });
+    });
+
+    let html = `<div class="summary-header">
+      <h1 class="summary-title">Zone Summary</h1>
+      <p class="summary-subtitle">Temperature overview by region</p>
+    </div>
+    <div class="summary-grid">`;
+
+    for (const zone of ZONES) {
+      const cities = groups[zone.key] || [];
+      html += `<div class="zone-card">
+        <div class="zone-card-header">
+          <div class="zone-indicator" style="background:${zone.color}"></div>
+          ${zone.label}
+        </div>`;
+
+      if (cities.length === 0) {
+        html += `<div style="font-size:.7rem;color:var(--text-muted)">No cities</div>`;
+      } else {
+        let hottest = null, coolest = null;
+        for (const { city, idx } of cities) {
+          const data = cityDataMap[city.name];
+          const cur = data?.current;
+          const todayDaily = data?.daily?.find(d => d.date === todayStr());
+          const temp = cur?.temp != null ? Math.round(cur.temp) : "--";
+          const hi = todayDaily?.max != null ? Math.round(todayDaily.max) : null;
+          const lo = todayDaily?.min != null ? Math.round(todayDaily.min) : null;
+          const rangeStr = hi != null && lo != null ? `${hi}°/${lo}°` : "";
+          const tempColor = temp !== "--" ? (temp >= 30 ? "var(--max-color)" : "var(--min-color)") : "var(--text)";
+          const sparkline = generateTempSparkline(city.name, zone.color);
+
+          if (temp !== "--") {
+            if (!hottest || temp > hottest.temp) hottest = { name: city.name, temp };
+            if (!coolest || temp < coolest.temp) coolest = { name: city.name, temp };
+          }
+
+          html += `<div class="zone-city-row" onclick="openCityFromSummary(${idx})">
+            <span class="zone-city-name">${city.name}</span>
+            <span class="zone-city-temp" style="color:${tempColor}">${temp}°</span>
+            <span class="zone-city-range">${rangeStr}</span>
+            <span class="zone-sparkline">${sparkline}</span>
+          </div>`;
+        }
+
+        // Footer with hottest/coolest
+        if (hottest && coolest && cities.length > 1) {
+          html += `<div class="zone-footer">
+            <span>Hot: ${hottest.name} ${hottest.temp}°</span>
+            <span>Cool: ${coolest.name} ${coolest.temp}°</span>
+          </div>`;
+        }
+      }
+
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+  } catch (e) {
+    console.error("renderSummary error:", e);
+  }
+}
+
+function openCityFromSummary(idx) {
+  try {
+    currentCityIdx = idx;
+    navigatedFrom = "summary";
+    renderCity(idx);
+    document.getElementById("backLabel").textContent = "Summary";
+    const dv = document.getElementById("detailView");
+    dv.classList.remove("from-map");
+    dv.classList.add("visible");
+  } catch (e) {
+    console.error("openCityFromSummary error:", e);
+  }
+}
+
 /* ── News (Tab 3) ─────────────────────────────────── */
 
 async function loadNews() {
@@ -1628,6 +1771,11 @@ function backFromDetail() {
 
   if (navigatedFrom === "cities") {
     // Just hide detail, cities tab is already visible
+    return;
+  }
+
+  if (navigatedFrom === "summary") {
+    // Summary tab is already visible behind detail
     return;
   }
 
