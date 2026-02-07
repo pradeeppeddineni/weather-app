@@ -2,3 +2,8 @@ node_modules/
 www/
 .DS_Store
 assets/
+.claude/
+.playwright-mcp/
+*.p8
+*.p12
+*.mobileprovision

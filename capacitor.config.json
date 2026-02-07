@@ -3,6 +3,7 @@
   "appName": "Temperature Tracker",
   "webDir": "www",
   "ios": {
+    "backgroundColor": "#0b0d14",
     "contentInset": "always",
     "allowsLinkPreview": false,
     "scrollEnabled": true
