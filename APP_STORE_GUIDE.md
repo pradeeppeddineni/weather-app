@@ -200,7 +200,7 @@ Codemagic builds your iOS app in the cloud on a Mac. No local Xcode needed.
 3. Enter:
    - **Name**: `pradeepdevkey` (must match what you reference in codemagic.yaml)
    - **Issuer ID**: from Apple
-   - **Key ID**: `FD9J752NM4`
+   - **Key ID**: *(note this down — you'll need it for Codemagic)*
    - **Upload the .p8 file**
 
 ### 4c. Add Code Signing Credentials to Codemagic
@@ -337,7 +337,7 @@ After a successful Codemagic build, the app appears in TestFlight automatically.
    - **SKU**: `temptracker-india-2026` (any unique string)
 3. Click **Create**
 
-This creates the App Store listing with Apple ID (ours was `6758897079`).
+This creates the App Store listing with a numeric Apple ID (visible in the URL).
 
 ---
 
