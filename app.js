@@ -1003,26 +1003,34 @@ function getCityCurrentData(city) {
 /* ── Zone Classification (Summary Tab) ────────────── */
 
 const ZONE_MAP = {
-  "Amritsar": "north", "Ludhiana": "north", "Bikaner": "north",
-  "Shahjahanpur": "north", "Gonda": "north",
-  "Rajkot": "west", "Nadiad": "west", "Indore": "west", "Kota": "west",
-  "Nagpur": "east", "Begusarai": "east", "Hajipur": "east", "Kolkata": "east",
-  "Lalitpur": "south"
+  // Northern Zone (Punjab, Haryana, Rajasthan, HP, J&K, Delhi)
+  "Amritsar": "northern", "Ludhiana": "northern", "Bikaner": "northern", "Kota": "northern",
+  // Central Zone (UP, MP, Chhattisgarh, Uttarakhand)
+  "Shahjahanpur": "central", "Gonda": "central", "Lalitpur": "central", "Indore": "central",
+  // Eastern Zone (Bihar, West Bengal, Odisha, Jharkhand)
+  "Begusarai": "eastern", "Hajipur": "eastern", "Kolkata": "eastern",
+  // Western Zone (Gujarat, Maharashtra, Goa)
+  "Rajkot": "western", "Nadiad": "western", "Nagpur": "western",
 };
 
 function classifyZone(city) {
   if (ZONE_MAP[city.name]) return ZONE_MAP[city.name];
-  if (city.lat >= 27) return "north";
-  if (city.lon <= 76) return "west";
-  if (city.lon >= 78) return "east";
-  return "south";
+  // Fallback by lat/lon approximation
+  if (city.lat >= 27 && city.lon <= 80) return "northern";
+  if (city.lat >= 21 && city.lat < 27 && city.lon >= 80) return "central";
+  if (city.lat >= 21 && city.lon < 80) return "western";
+  if (city.lon >= 80 && city.lat >= 21) return "eastern";
+  if (city.lon >= 91) return "northeastern";
+  return "southern";
 }
 
 const ZONES = [
-  { key: "north", label: "North", icon: "N", color: "#f97066" },
-  { key: "east",  label: "East",  icon: "E", color: "#60a5fa" },
-  { key: "west",  label: "West",  icon: "W", color: "#4ade80" },
-  { key: "south", label: "South", icon: "S", color: "#c084fc" },
+  { key: "northern",     label: "Northern",      color: "#f97066" },
+  { key: "western",      label: "Western",       color: "#4ade80" },
+  { key: "central",      label: "Central",       color: "#fbbf24" },
+  { key: "eastern",      label: "Eastern",       color: "#60a5fa" },
+  { key: "southern",     label: "Southern",      color: "#c084fc" },
+  { key: "northeastern", label: "North Eastern",  color: "#38bdf8" },
 ];
 
 /* Weather-condition gradient backgrounds for city cards */
@@ -1589,9 +1597,11 @@ function renderSummary() {
     if (!container) return;
 
     // Group cities by zone
-    const groups = { north: [], east: [], west: [], south: [] };
+    const groups = {};
+    ZONES.forEach(z => groups[z.key] = []);
     CITIES.forEach((city, idx) => {
       const zone = classifyZone(city);
+      if (!groups[zone]) groups[zone] = [];
       groups[zone].push({ city, idx });
     });
 
@@ -1603,15 +1613,15 @@ function renderSummary() {
 
     for (const zone of ZONES) {
       const cities = groups[zone.key] || [];
+      if (cities.length === 0) continue; // Skip empty zones
+
       html += `<div class="zone-card">
         <div class="zone-card-header">
           <div class="zone-indicator" style="background:${zone.color}"></div>
           ${zone.label}
         </div>`;
 
-      if (cities.length === 0) {
-        html += `<div style="font-size:.7rem;color:var(--text-muted)">No cities</div>`;
-      } else {
+      {
         let hottest = null, coolest = null;
         for (const { city, idx } of cities) {
           const cityData = getCityCurrentData(city);
