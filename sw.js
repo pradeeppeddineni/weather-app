@@ -1,4 +1,4 @@
-const CACHE_NAME = "temptrack-v10";
+const CACHE_NAME = "temptrack-v11";
 const SHELL_FILES = [
   "./",
   "index.html",

@@ -634,6 +634,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   color: var(--accent); font-size: .85rem; font-weight: 500;
   transition: background .2s, border-color .2s;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 .add-city-btn:hover { background: rgba(78,168,245,0.08); border-color: rgba(78,168,245,0.5) }
 

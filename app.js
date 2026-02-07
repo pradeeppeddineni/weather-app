@@ -474,36 +474,40 @@ let activeMapMode = "default";
 /* ── Tab Switching ─────────────────────────────────── */
 
 function switchTab(tabId) {
-  // Close detail & chart if open
-  document.getElementById("detailView").classList.remove("visible");
-  closeChartOverlay();
+  try {
+    // Close detail & chart if open
+    document.getElementById("detailView").classList.remove("visible");
+    closeChartOverlay();
 
-  // Reset map zoom if we were in detail from map
-  if (navigatedFrom === "map") {
-    const container = document.getElementById("mapContainer");
-    document.getElementById("mapView").classList.remove("hidden");
-    container.classList.remove("zooming");
-    container.style.transform = "";
-  }
+    // Reset map zoom if we were in detail from map
+    if (navigatedFrom === "map") {
+      const container = document.getElementById("mapContainer");
+      document.getElementById("mapView").classList.remove("hidden");
+      container.classList.remove("zooming");
+      container.style.transform = "";
+    }
 
-  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-  document.querySelectorAll(".tab-bar-btn").forEach(el => el.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+    document.querySelectorAll(".tab-bar-btn").forEach(el => el.classList.remove("active"));
 
-  const tab = document.getElementById(tabId);
-  if (tab) tab.classList.add("active");
+    const tab = document.getElementById(tabId);
+    if (tab) tab.classList.add("active");
 
-  const btn = document.querySelector(`.tab-bar-btn[data-tab="${tabId}"]`);
-  if (btn) btn.classList.add("active");
+    const btn = document.querySelector(`.tab-bar-btn[data-tab="${tabId}"]`);
+    if (btn) btn.classList.add("active");
 
-  // Lazy load news on first visit
-  if (tabId === "tabNews" && !newsLoaded) {
-    newsLoaded = true;
-    loadNews();
-  }
+    // Lazy load news on first visit
+    if (tabId === "tabNews" && !newsLoaded) {
+      newsLoaded = true;
+      loadNews();
+    }
 
-  // Re-render cities list when switching to it
-  if (tabId === "tabCities") {
-    renderCitiesList();
+    // Re-render cities list when switching to it
+    if (tabId === "tabCities") {
+      renderCitiesList();
+    }
+  } catch (e) {
+    console.error("switchTab error:", e);
   }
 }
 
@@ -1181,55 +1185,59 @@ function renderCitiesList(filter) {
 
   container.innerHTML = "";
   filtered.forEach(({ city, idx }) => {
-    const info = getCityCurrentData(city);
+    try {
+      const info = getCityCurrentData(city);
 
-    // Swipe wrapper
-    const wrapper = document.createElement("div");
-    wrapper.className = "city-card-wrapper";
-    wrapper.dataset.idx = idx;
+      // Swipe wrapper
+      const wrapper = document.createElement("div");
+      wrapper.className = "city-card-wrapper";
+      wrapper.dataset.idx = idx;
 
-    // Delete background
-    const deleteBg = document.createElement("div");
-    deleteBg.className = "city-card-delete-bg";
-    deleteBg.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete`;
-    wrapper.appendChild(deleteBg);
+      // Delete background
+      const deleteBg = document.createElement("div");
+      deleteBg.className = "city-card-delete-bg";
+      deleteBg.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete`;
+      wrapper.appendChild(deleteBg);
 
-    // Card
-    const card = document.createElement("div");
-    card.className = "city-card";
-    const iconType = info ? info.icon : "cloud";
-    const gradient = CARD_GRADIENTS[iconType] || CARD_GRADIENTS.cloud;
-    card.style.setProperty("--card-bg", gradient);
+      // Card
+      const card = document.createElement("div");
+      card.className = "city-card";
+      const iconType = info ? info.icon : "cloud";
+      const gradient = CARD_GRADIENTS[iconType] || CARD_GRADIENTS.cloud;
+      card.style.setProperty("--card-bg", gradient);
 
-    const iconHtml = info ? weatherSVGSmall(iconType, 32) : weatherSVGSmall("cloud", 32);
-    const tempStr = info && info.temp != null ? info.temp + "°" : "--°";
-    const desc = info ? info.desc : "Loading...";
-    const rangeHtml = info && info.high != null
-      ? `H:<span class="hi">${info.high}°</span>  L:<span class="lo">${info.low}°</span>`
-      : "--";
+      const iconHtml = info ? weatherSVGSmall(iconType, 32) : weatherSVGSmall("cloud", 32);
+      const tempStr = info && info.temp != null ? info.temp + "°" : "--°";
+      const desc = info ? info.desc : "Loading...";
+      const rangeHtml = info && info.high != null
+        ? `H:<span class="hi">${info.high}°</span>  L:<span class="lo">${info.low}°</span>`
+        : "--";
 
-    const precipChip = info && info.precipProb > 0
-      ? `<div class="city-card-precip">${info.precipProb}%</div>`
-      : "";
+      const precipChip = info && info.precipProb > 0
+        ? `<div class="city-card-precip">${info.precipProb}%</div>`
+        : "";
 
-    card.innerHTML = `
-      ${generateWeatherParticles(iconType)}
-      <div class="city-card-icon">${iconHtml}</div>
-      <div class="city-card-left">
-        <div class="city-card-name">${city.name}</div>
-        <div class="city-card-desc">${desc}</div>
-        ${precipChip}
-      </div>
-      <div class="city-card-right">
-        <div class="city-card-current">${tempStr}</div>
-        <div class="city-card-range">${rangeHtml}</div>
-      </div>
-    `;
-    wrapper.appendChild(card);
-    container.appendChild(wrapper);
+      card.innerHTML = `
+        ${generateWeatherParticles(iconType)}
+        <div class="city-card-icon">${iconHtml}</div>
+        <div class="city-card-left">
+          <div class="city-card-name">${city.name}</div>
+          <div class="city-card-desc">${desc}</div>
+          ${precipChip}
+        </div>
+        <div class="city-card-right">
+          <div class="city-card-current">${tempStr}</div>
+          <div class="city-card-range">${rangeHtml}</div>
+        </div>
+      `;
+      wrapper.appendChild(card);
+      container.appendChild(wrapper);
 
-    // Setup swipe & tap handlers
-    setupCardSwipe(wrapper, card, deleteBg, idx, city);
+      // Setup swipe & tap handlers
+      setupCardSwipe(wrapper, card, deleteBg, idx, city);
+    } catch (e) {
+      console.error("Error rendering city card for " + city.name + ":", e);
+    }
   });
 }
 
@@ -1504,13 +1512,17 @@ async function addNewCity(geoResult) {
 }
 
 function openCityFromList(idx) {
-  currentCityIdx = idx;
-  navigatedFrom = "cities";
-  renderCity(idx);
-  document.getElementById("backLabel").textContent = "Cities";
-  const dv = document.getElementById("detailView");
-  dv.classList.remove("from-map");
-  dv.classList.add("visible");
+  try {
+    currentCityIdx = idx;
+    navigatedFrom = "cities";
+    renderCity(idx);
+    document.getElementById("backLabel").textContent = "Cities";
+    const dv = document.getElementById("detailView");
+    dv.classList.remove("from-map");
+    dv.classList.add("visible");
+  } catch (e) {
+    console.error("openCityFromList error:", e);
+  }
 }
 
 /* ── News (Tab 3) ─────────────────────────────────── */
@@ -1633,6 +1645,7 @@ function backFromDetail() {
 /* ── City Detail Rendering ─────────────────────────── */
 
 function renderCity(idx) {
+  try {
   currentCityIdx = idx;
   const city = CITIES[idx];
   const data = cityDataMap[city.name];
@@ -2003,6 +2016,9 @@ function renderCity(idx) {
 
   // Daily forecast
   renderDaily(daily);
+  } catch (e) {
+    console.error("renderCity error:", e);
+  }
 }
 
 function renderHourly(hourly, today, nowHour) {
@@ -2722,26 +2738,48 @@ async function loadAllCities() {
 }
 
 async function init() {
-  loadCustomCities();
-  await loadAllCities();
+  try {
+    loadCustomCities();
+  } catch (e) { console.error("loadCustomCities failed:", e); }
+
+  try {
+    await loadAllCities();
+  } catch (e) { console.error("loadAllCities failed:", e); }
 
   // Hide loading screen
-  document.getElementById("loadingScreen").classList.add("hidden");
+  try {
+    document.getElementById("loadingScreen").classList.add("hidden");
+  } catch (e) { console.error("hide loading failed:", e); }
 
   // Set today's date
-  document.getElementById("mapDate").textContent = formatFullDate(todayStr());
+  try {
+    document.getElementById("mapDate").textContent = formatFullDate(todayStr());
+  } catch (e) { console.error("mapDate failed:", e); }
 
   // Render map with city markers
-  renderMap();
+  try {
+    renderMap();
+  } catch (e) { console.error("renderMap failed:", e); }
 
   // Setup map pinch-zoom & pan
-  setupMapZoom();
+  try {
+    setupMapZoom();
+  } catch (e) { console.error("setupMapZoom failed:", e); }
 
-  // Setup navigation
-  setupNav();
+  // Setup navigation — MUST run even if above steps fail
+  try {
+    setupNav();
+  } catch (e) { console.error("setupNav failed:", e); }
 
   // Setup pull-to-refresh
-  setupPullToRefresh();
+  try {
+    setupPullToRefresh();
+  } catch (e) { console.error("setupPullToRefresh failed:", e); }
+
+  // Render cities list so it's ready when tab is switched
+  try {
+    renderCitiesList();
+  } catch (e) { console.error("renderCitiesList failed:", e); }
 }
 
 // Register service worker
