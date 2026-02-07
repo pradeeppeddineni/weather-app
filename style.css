@@ -1419,8 +1419,8 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   margin-top: .15rem;
 }
 .summary-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 .zone-card {
@@ -1511,12 +1511,6 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-@media (max-width: 320px) {
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ── Scrollbar ─────────────────────────────────────── */

@@ -1612,12 +1612,10 @@ function renderSummary() {
       } else {
         let hottest = null, coolest = null;
         for (const { city, idx } of cities) {
-          const data = cityDataMap[city.name];
-          const cur = data?.current;
-          const todayDaily = data?.daily?.find(d => d.date === todayStr());
-          const temp = cur?.temp != null ? Math.round(cur.temp) : "--";
-          const hi = todayDaily?.max != null ? Math.round(todayDaily.max) : null;
-          const lo = todayDaily?.min != null ? Math.round(todayDaily.min) : null;
+          const cityData = getCityCurrentData(city);
+          const temp = cityData?.temp != null ? cityData.temp : "--";
+          const hi = cityData?.high;
+          const lo = cityData?.low;
           const rangeStr = hi != null && lo != null ? `${hi}°/${lo}°` : "";
           const tempColor = temp !== "--" ? (temp >= 30 ? "var(--max-color)" : "var(--min-color)") : "var(--text)";
           const sparkline = generateTempSparkline(city.name, zone.color);
