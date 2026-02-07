@@ -16,6 +16,7 @@
   --font: "DM Sans", system-ui, -apple-system, sans-serif;
   --font-heading: "Space Grotesk", system-ui, -apple-system, sans-serif;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --tab-bar-h: 64px;
 }
 
@@ -52,7 +53,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
   bottom: 0; left: 0; right: 0;
   z-index: 50;
   max-width: 480px; margin: 0 auto;
-  height: var(--tab-bar-h);
+  height: calc(var(--tab-bar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   display: flex;
   align-items: center;
@@ -93,7 +94,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 .tab-content {
   position: fixed;
   inset: 0;
-  bottom: var(--tab-bar-h);
+  bottom: calc(var(--tab-bar-h) + var(--safe-bottom));
   z-index: 10;
   display: none;
   background: var(--bg);
@@ -117,6 +118,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 
 .map-header {
   padding: 1.25rem 1.5rem 0;
+  padding-top: calc(1.25rem + var(--safe-top));
   flex-shrink: 0;
 }
 .map-title {
@@ -274,6 +276,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 }
 .cities-header {
   padding: 1.25rem 1rem .75rem;
+  padding-top: calc(1.25rem + var(--safe-top));
   flex-shrink: 0;
 }
 .cities-title {
@@ -719,6 +722,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 }
 .news-header {
   padding: 1.25rem 1.5rem .75rem;
+  padding-top: calc(1.25rem + var(--safe-top));
   flex-shrink: 0;
 }
 .news-title {
@@ -1029,7 +1033,8 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 
 .detail-topbar {
   width:100%; display:flex; justify-content:space-between; align-items:center;
-  padding: 1rem 0 .25rem; position:relative; z-index:2;
+  padding: 1rem 0 .25rem; padding-top: calc(1rem + var(--safe-top));
+  position:relative; z-index:2;
   text-align:left;
 }
 .back-btn {
@@ -1406,6 +1411,7 @@ button { border:none; background:none; cursor:pointer; color:inherit; font:inher
 }
 .summary-header {
   margin-bottom: 16px;
+  padding-top: var(--safe-top);
 }
 .summary-title {
   font-family: var(--font-heading);

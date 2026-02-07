@@ -3,6 +3,24 @@
    India map → city detail weather app
    ══════════════════════════════════════════════════════ */
 
+/* ── Native Helpers (Capacitor) ────────────────────── */
+
+function hapticTap() {
+  try {
+    if (window.Capacitor?.Plugins?.Haptics) {
+      window.Capacitor.Plugins.Haptics.impact({ style: 'light' });
+    }
+  } catch (e) { /* ignore on web */ }
+}
+
+function hapticHeavy() {
+  try {
+    if (window.Capacitor?.Plugins?.Haptics) {
+      window.Capacitor.Plugins.Haptics.impact({ style: 'heavy' });
+    }
+  } catch (e) { /* ignore on web */ }
+}
+
 /* ── Helpers ───────────────────────────────────────── */
 
 function toIST(date) {
@@ -474,6 +492,7 @@ let activeMapMode = "default";
 /* ── Tab Switching ─────────────────────────────────── */
 
 function switchTab(tabId) {
+  hapticTap();
   try {
     // Close detail & chart if open
     document.getElementById("detailView").classList.remove("visible");
@@ -897,6 +916,7 @@ function setupMapZoom() {
 
 function zoomToCity(idx) {
   if (isZooming) return;
+  hapticHeavy();
   isZooming = true;
   currentCityIdx = idx;
   navigatedFrom = "map";
@@ -1552,6 +1572,7 @@ async function addNewCity(geoResult) {
 }
 
 function openCityFromList(idx) {
+  hapticTap();
   try {
     currentCityIdx = idx;
     navigatedFrom = "cities";
@@ -1665,6 +1686,7 @@ function renderSummary() {
 }
 
 function openCityFromSummary(idx) {
+  hapticTap();
   try {
     currentCityIdx = idx;
     navigatedFrom = "summary";
@@ -1775,6 +1797,7 @@ function renderNewsFallback(container) {
 /* ── Back Navigation ──────────────────────────────── */
 
 function backFromDetail() {
+  hapticTap();
   document.getElementById("detailView").classList.remove("visible");
   document.getElementById("detailBgParticles").innerHTML = "";
   closeChartOverlay();
@@ -2900,9 +2923,42 @@ async function init() {
     loadCustomCities();
   } catch (e) { console.error("loadCustomCities failed:", e); }
 
+  // Check offline before fetching
+  if (!navigator.onLine) {
+    const ls = document.getElementById("loadingScreen");
+    const lt = ls?.querySelector(".loading-text");
+    if (lt) lt.textContent = "No internet connection. Waiting...";
+    // Wait for connectivity
+    await new Promise(resolve => {
+      window.addEventListener("online", resolve, { once: true });
+      // Also retry every 5s in case event doesn't fire
+      const interval = setInterval(() => {
+        if (navigator.onLine) { clearInterval(interval); resolve(); }
+      }, 5000);
+    });
+    if (lt) lt.textContent = "Connected! Fetching weather data...";
+  }
+
   try {
     await loadAllCities();
   } catch (e) { console.error("loadAllCities failed:", e); }
+
+  // Check if any cities loaded successfully
+  const loadedCount = Object.values(cityDataMap).filter(d => d.current || d.daily.length).length;
+  if (loadedCount === 0 && !navigator.onLine) {
+    const ls = document.getElementById("loadingScreen");
+    const lt = ls?.querySelector(".loading-text");
+    if (lt) lt.textContent = "Unable to load weather data. Check your connection.";
+    const lb = document.getElementById("loadingBar");
+    if (lb) lb.style.display = "none";
+    // Add retry button
+    const btn = document.createElement("button");
+    btn.textContent = "Retry";
+    btn.style.cssText = "margin-top:1rem;padding:.6rem 2rem;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;font-size:.9rem;border:none;cursor:pointer";
+    btn.onclick = () => location.reload();
+    ls?.appendChild(btn);
+    return;
+  }
 
   // Hide loading screen
   try {
@@ -2940,8 +2996,8 @@ async function init() {
   } catch (e) { console.error("renderCitiesList failed:", e); }
 }
 
-// Register service worker
-if ("serviceWorker" in navigator) {
+// Register service worker (skip in Capacitor native builds)
+if (!window.Capacitor && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 

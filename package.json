@@ -1,0 +1,33 @@
+{
+  "name": "sk",
+  "version": "1.0.0",
+  "description": "A premium weather PWA that tracks real-time and historical temperatures for 14 Indian cities. Installable on phone via \"Add to Home Screen\".",
+  "main": "app.js",
+  "scripts": {
+    "build": "mkdir -p www/lib www/fonts && cp index.html style.css app.js cities.js manifest.json sw.js www/ && cp -r icons www/ && cp -r lib/* www/lib/ && cp -r fonts/* www/fonts/",
+    "cap:sync": "npm run build && npx cap sync ios",
+    "cap:open": "npx cap open ios",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pradeeppeddineni/weather-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/pradeeppeddineni/weather-app/issues"
+  },
+  "homepage": "https://github.com/pradeeppeddineni/weather-app#readme",
+  "dependencies": {
+    "@capacitor/core": "^8.0.2",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/ios": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.2"
+  }
+}

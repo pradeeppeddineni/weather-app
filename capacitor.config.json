@@ -1,0 +1,14 @@
+{
+  "appId": "com.temptracker.app",
+  "appName": "Temperature Tracker",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
+  },
+  "server": {
+    "iosScheme": "capacitor",
+    "hostname": "localhost"
+  }
+}
