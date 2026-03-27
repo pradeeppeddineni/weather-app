@@ -320,10 +320,9 @@ def cmd_testflight(args):
     if args.whats_new:
         set_beta_whats_new(build["id"], args.whats_new)
 
-    # Add to internal groups
-    for group in int_groups:
-        print(f"Adding to internal group: {group['name']}")
-        add_build_to_group(group["id"], build["id"])
+    # Internal testers get all builds automatically — no API call needed
+    if int_groups:
+        print(f"Internal testers ({', '.join(g['name'] for g in int_groups)}) — notified automatically")
 
     # Add to external groups
     if args.group:
@@ -422,13 +421,15 @@ def cmd_full(args):
 
     print("\n=== Step 4: Add to TestFlight (internal + external) ===")
     groups = list_beta_groups(app_id)
+    int_groups = [g for g in groups if g["internal"]]
+    ext_groups = [g for g in groups if not g["internal"]]
     if args.whats_new:
         set_beta_whats_new(build["id"], args.whats_new)
-    for group in groups:
-        label = "internal" if group["internal"] else "external"
-        print(f"Adding to {label} group: {group['name']}")
+    if int_groups:
+        print(f"Internal testers ({', '.join(g['name'] for g in int_groups)}) — notified automatically")
+    for group in ext_groups:
+        print(f"Adding to external group: {group['name']}")
         add_build_to_group(group["id"], build["id"])
-    ext_groups = [g for g in groups if not g["internal"]]
     if ext_groups:
         submit_beta_review(build["id"])
 
