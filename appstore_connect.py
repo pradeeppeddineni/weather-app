@@ -53,6 +53,8 @@ def asc_patch(path, data):
     if not r.ok:
         print(f"PATCH {path} failed ({r.status_code}): {r.text[:500]}")
         sys.exit(1)
+    if r.status_code == 204 or not r.text.strip():
+        return {}
     return r.json()
 
 
@@ -312,27 +314,32 @@ def cmd_testflight(args):
     print(f"Using build: {build['version']}")
 
     groups = list_beta_groups(app_id)
+    int_groups = [g for g in groups if g["internal"]]
     ext_groups = [g for g in groups if not g["internal"]]
 
+    if args.whats_new:
+        set_beta_whats_new(build["id"], args.whats_new)
+
+    # Add to internal groups
+    for group in int_groups:
+        print(f"Adding to internal group: {group['name']}")
+        add_build_to_group(group["id"], build["id"])
+
+    # Add to external groups
     if args.group:
         group = next((g for g in ext_groups if g["name"].lower() == args.group.lower()), None)
         if not group:
             print(f"Group '{args.group}' not found. Available: {[g['name'] for g in ext_groups]}")
             sys.exit(1)
-    elif ext_groups:
-        group = ext_groups[0]
-    else:
-        print("No external testing groups found")
-        sys.exit(1)
+        ext_groups = [group]
 
-    print(f"Adding to group: {group['name']}")
+    for group in ext_groups:
+        print(f"Adding to external group: {group['name']}")
+        add_build_to_group(group["id"], build["id"])
 
-    if args.whats_new:
-        set_beta_whats_new(build["id"], args.whats_new)
-
-    add_build_to_group(group["id"], build["id"])
     submit_beta_review(build["id"])
-    print(f"\n✓ Build {build['version']} added to '{group['name']}' and submitted for beta review")
+    group_names = [g['name'] for g in int_groups + ext_groups]
+    print(f"\n✓ Build {build['version']} added to {group_names} and submitted for beta review")
 
 
 def cmd_build(args):
@@ -413,16 +420,17 @@ def cmd_full(args):
     attach_build(version_id, build["id"])
     submit_for_review(app_id, version_id)
 
-    print("\n=== Step 4: Add to TestFlight external group ===")
+    print("\n=== Step 4: Add to TestFlight (internal + external) ===")
     groups = list_beta_groups(app_id)
+    if args.whats_new:
+        set_beta_whats_new(build["id"], args.whats_new)
+    for group in groups:
+        label = "internal" if group["internal"] else "external"
+        print(f"Adding to {label} group: {group['name']}")
+        add_build_to_group(group["id"], build["id"])
     ext_groups = [g for g in groups if not g["internal"]]
     if ext_groups:
-        group = ext_groups[0]
-        if args.whats_new:
-            set_beta_whats_new(build["id"], args.whats_new)
-        add_build_to_group(group["id"], build["id"])
         submit_beta_review(build["id"])
-        print(f"Added to '{group['name']}'")
 
     print(f"\n✓ Full pipeline complete for version {args.version}")
 
